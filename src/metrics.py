@@ -3,13 +3,19 @@
 import numpy as np
 from sklearn.metrics import (
     average_precision_score, confusion_matrix, f1_score,
-    precision_recall_curve, precision_score, recall_score, roc_auc_score,
+    precision_score, recall_score, roc_auc_score,
 )
 
 
 def _validate(y, probabilities):
     labels = np.asarray(y)
-    scores = np.asarray(probabilities, dtype=float)
+    raw_scores = np.asarray(probabilities)
+    if np.iscomplexobj(raw_scores) or (
+        raw_scores.dtype == object
+        and any(isinstance(value, (complex, np.complexfloating)) for value in raw_scores.flat)
+    ):
+        raise ValueError("Probabilities must be real values, not complex numbers.")
+    scores = np.asarray(raw_scores, dtype=float)
     if labels.ndim != 1 or scores.ndim != 1 or len(labels) != len(scores) or not len(labels):
         raise ValueError("Labels and probabilities must be aligned, nonempty 1-D arrays.")
     if not np.isin(labels, [0, 1]).all():
@@ -23,18 +29,29 @@ def select_validation_threshold(y, probabilities) -> float:
     """Maximize VALIDATION F1; an exact tie uses the highest threshold.
 
     The caller must provide VALIDATION labels and scores, never TEST. Predictions
-    are positive when score >= threshold. All-equal scores are handled explicitly
-    by the precision/recall curve, without splitting tied scores.
+    are positive when score >= threshold. Equal scores are never split, and
+    integer cross-products identify exact F1 ties without rounding ambiguity.
     """
     labels, scores = _validate(y, probabilities)
     if len(np.unique(labels)) != 2:
         raise ValueError("Threshold selection requires both VALIDATION classes.")
-    precision, recall, thresholds = precision_recall_curve(labels, scores)
-    denominator = precision[:-1] + recall[:-1]
-    f1 = np.divide(2 * precision[:-1] * recall[:-1], denominator,
-                   out=np.zeros_like(denominator), where=denominator > 0)
-    best = np.flatnonzero(f1 == f1.max())
-    return float(thresholds[best[-1]])
+    order = np.argsort(scores, kind="stable")[::-1]
+    ranked_scores = scores[order]
+    true_positives = np.cumsum(labels[order], dtype=np.int64)
+    group_ends = np.r_[np.flatnonzero(ranked_scores[:-1] != ranked_scores[1:]), len(labels) - 1]
+    total_positives = int(labels.sum())
+    best_numerator, best_denominator = 0, 1
+    best_threshold = float(ranked_scores[0])
+    for end in group_ends:
+        # F1 = 2 TP / (number selected + total positives). Python integers
+        # keep cross-products exact and avoid fixed-width integer overflow.
+        numerator = 2 * int(true_positives[end])
+        denominator = int(end) + 1 + total_positives
+        if numerator * best_denominator > best_numerator * denominator:
+            best_numerator, best_denominator = numerator, denominator
+            best_threshold = float(ranked_scores[end])
+        # Descending thresholds retain the highest cutoff on an exact tie.
+    return best_threshold
 
 
 def classification_metrics(y, probabilities, threshold: float) -> dict:

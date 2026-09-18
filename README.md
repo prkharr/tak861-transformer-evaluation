@@ -147,4 +147,12 @@ README.md
 
 Run the synthetic tests from the repository root using `python -m pytest -q`. Read `VALIDATION.md` for what has actually been checked and any remaining environment limitations. Synthetic tests validate code behavior; they do not measure performance on the V63 cohort.
 
+To verify notebook execution in fresh kernels, run:
+
+```sh
+python scripts/smoke_notebooks.py --output-dir artifacts/notebook_smoke_001
+```
+
+The output directory must not already exist. This check creates synthetic monthly inputs, executes notebook 01 twice to verify frozen-split reuse, then executes 02 and 03 in separate kernels. It includes categorical patient identifiers and literal identifiers such as `NA` to check identity preservation through saved artifacts. All synthetic inputs, executed copies and reports remain in the chosen local directory; source notebooks stay cleared. See `REVIEW.md` for the implementation review and corrections.
+
 Keep local configuration, patient/monthly data, tensors, manifests, checkpoints, prediction exports and reports outside Git. Clear notebook outputs before sharing a notebook that has been run, and inspect every staged file. `.gitignore` does not remove previously tracked files. This repository does not include the upstream initialization notebook, private context attachments, credentials or proprietary source exports.

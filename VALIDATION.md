@@ -1,5 +1,19 @@
 # Validation record
 
+## Implementation review and corrections — 18 September 2026
+
+Reviewed the delivered implementation from commit `5763b03`; the original ZIP matched that source. See `REVIEW.md` for findings, corrections and remaining project checks.
+
+The corrected suite passes **136 tests**: 62 data/split tests, 22 training tests, 44 targeting-evaluation tests and 8 pipeline-integration tests. The original unmodified baseline passed 107 tests. Added checks cover exact F1 ties, literal CSV patient identifiers, categorical ordering and unused categories, complex-value rejection, actual parameter learning, unchanged validation/scoring weights, and best-checkpoint restoration under early stopping.
+
+The threshold selector also matched an independent exact-rational oracle over 8,166 nonconstant binary-label sequences. Separate synthetic targeting checks exercised 30 combinations of test-set size and class balance, including zero/all-positive outcomes.
+
+The updated notebook smoke completed in **four fresh kernels**: notebook 01 created the bundle/split/audit, notebook 01 reused them, notebook 02 trained, and notebook 03 evaluated the saved checkpoint on TEST. The fixture includes shuffled monthly rows, unused categorical patient values, and literal `NA`/`NULL`/`N/A` identifiers. It produced six charts and five aggregate CSV tables, with no patient-level report exports. Source notebook outputs remain cleared. Run `python scripts/smoke_notebooks.py --output-dir artifacts/notebook_smoke_001` to reproduce in a new local directory.
+
+These checks use the existing Python 3.9.7 / PyTorch 2.8.0+cpu environment. The recommended work-laptop runtime remains an approved compatible Python/PyTorch installation. Matplotlib emitted 14 dependency deprecation warnings during the full suite; no test failed.
+
+The original initialization notebook and real data remain unavailable, so upstream compatibility, temporal leakage rules, private population totals and actual model performance have not been certified. No real-data model metrics were generated. LightGBM remains outside this review's scope.
+
 ## Downstream pipeline update — 18 September 2026
 
 Added the executable path from the completed monthly table through patient splitting, Transformer training and held-out evaluation. The source reference was the shared conversation and master context; the authoritative `tensor_initialization.ipynb` was not available in the accessible repository branches or this machine. It was not modified or included.

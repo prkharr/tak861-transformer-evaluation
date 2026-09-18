@@ -189,7 +189,63 @@ def test_multiple_snapshots_for_one_patient_are_valid_within_one_split():
     assert aligned.PATIENT_ID.nunique() == 10
 
 
-@pytest.mark.parametrize("invalid_score", [-0.01, 1.01, np.nan, np.inf, -np.inf, "not-a-score"])
+def test_unused_categorical_patient_ids_do_not_create_phantom_leakage():
+    manifest, transformer = make_inputs()
+    manifest["PATIENT_ID"] = pd.Categorical(
+        manifest.PATIENT_ID, categories=[*manifest.PATIENT_ID, "UNUSED_PATIENT"])
+    aligned = evaluation.validate_inputs(manifest, transformer)
+    assert len(aligned) == 20
+    assert evaluation.validate_manifest(manifest).PATIENT_ID.nunique() == len(manifest)
+
+
+def test_manifest_fingerprint_ignores_categorical_key_order_and_csv_dtypes(tmp_path):
+    manifest, _ = make_inputs()
+    categorical = manifest.copy()
+    categorical["PATIENT_ID"] = pd.Categorical(
+        categorical.PATIENT_ID, categories=[*reversed(manifest.PATIENT_ID), "UNUSED_PATIENT"])
+    path = tmp_path / "manifest.csv"
+    categorical.to_csv(path, index=False)
+    expected = evaluation.manifest_fingerprint(manifest)
+    assert evaluation.manifest_fingerprint(categorical.sample(frac=1, random_state=8)) == expected
+    assert evaluation.manifest_fingerprint(evaluation.read_input(path)) == expected
+
+
+def test_csv_reader_preserves_literal_patient_keys(tmp_path):
+    manifest, transformer = make_inputs()
+    literal_keys = ["NA", "NULL", "N/A", "nan", "0000123"]
+    for index, key in enumerate(literal_keys):
+        manifest.loc[index, "PATIENT_ID"] = key
+        transformer.loc[index, "PATIENT_ID"] = key
+    manifest_path, score_path = tmp_path / "manifest.csv", tmp_path / "scores.csv"
+    manifest.to_csv(manifest_path, index=False)
+    transformer.to_csv(score_path, index=False)
+    aligned = evaluation.validate_inputs(evaluation.read_input(manifest_path),
+                                         evaluation.read_input(score_path))
+    assert set(literal_keys).issubset(aligned.PATIENT_ID)
+    assert len(aligned) == 20
+
+
+@pytest.mark.parametrize("column", ["PATIENT_ID", "END_DT", "RESP", "SPLIT"])
+def test_csv_reader_still_rejects_missing_required_manifest_values(tmp_path, column):
+    manifest, transformer = make_inputs()
+    manifest[column] = manifest[column].astype(object)
+    manifest.loc[0, column] = None
+    path = tmp_path / "manifest.csv"
+    manifest.to_csv(path, index=False)
+    with pytest.raises(ValueError):
+        evaluation.validate_inputs(evaluation.read_input(path), transformer)
+
+
+def test_csv_reader_still_rejects_missing_probability(tmp_path):
+    manifest, transformer = make_inputs()
+    transformer.loc[0, "P_RESP1"] = np.nan
+    path = tmp_path / "scores.csv"
+    transformer.to_csv(path, index=False)
+    with pytest.raises(ValueError):
+        evaluation.validate_inputs(manifest, evaluation.read_input(path))
+
+
+@pytest.mark.parametrize("invalid_score", [-0.01, 1.01, np.nan, np.inf, -np.inf, "not-a-score", 0.5 + 0.1j])
 def test_invalid_probability_rejected(invalid_score):
     inputs = list(make_inputs())
     inputs[1]["P_RESP1"] = inputs[1].P_RESP1.astype(object)

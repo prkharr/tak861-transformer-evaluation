@@ -180,6 +180,30 @@ def test_monthly_default_features_are_sorted_and_values_follow_that_order():
     np.testing.assert_array_equal(actual.y, expected.y)
 
 
+def test_monthly_categorical_patient_keys_do_not_create_phantom_snapshots():
+    expected = reorder(make_bundle(n_patients=2), np.array([0, 3]))
+    monthly = make_monthly(expected)
+    monthly["PATIENT_ID"] = pd.Categorical(
+        monthly.PATIENT_ID,
+        categories=["SYNTHETIC_0001", "SYNTHETIC_0000", "UNUSED_PATIENT"],
+    )
+    actual = data_utils.bundle_from_monthly(monthly.sample(frac=1, random_state=5), feature_names=FEATURES)
+    np.testing.assert_array_equal(actual.X, expected.X)
+    np.testing.assert_array_equal(actual.y, expected.y)
+    pd.testing.assert_frame_equal(actual.snapshots.astype({"PATIENT_ID": object}), expected.snapshots)
+
+
+@pytest.mark.parametrize("complex_value,object_column", [
+    (1 + 2j, False), (1 + 2j, True), (np.complex64(1 + 2j), True),
+])
+def test_monthly_complex_counts_rejected_before_lossy_float_conversion(complex_value, object_column):
+    monthly = make_monthly(make_bundle(n_patients=2))
+    monthly[FEATURES[0]] = monthly[FEATURES[0]].astype(object if object_column else complex)
+    monthly.loc[0, FEATURES[0]] = complex_value
+    with pytest.raises(ValueError, match="real numeric raw counts"):
+        data_utils.bundle_from_monthly(monthly)
+
+
 def test_monthly_missing_zero_activity_month_rejected_instead_of_silent_padding():
     monthly = make_monthly(make_bundle())
     monthly = monthly.drop(index=3)  # Counts are all zero, but the key/month is still required.
@@ -253,6 +277,36 @@ def test_existing_split_reused_despite_changed_seed_and_requested_fractions(tmp_
     pd.testing.assert_frame_equal(first.sort_values(KEYS).reset_index(drop=True),
                                   second.sort_values(KEYS).reset_index(drop=True), check_dtype=False)
     assert path.read_bytes() == original_bytes
+
+
+def test_frozen_split_reload_preserves_patient_ids_that_look_like_csv_missing_values(tmp_path):
+    bundle = make_bundle()
+    replacements = dict(zip(bundle.snapshots.PATIENT_ID.unique()[:4], ["NA", "NULL", "N/A", "NaN"]))
+    keys = bundle.snapshots.copy()
+    keys["PATIENT_ID"] = keys.PATIENT_ID.replace(replacements)
+    bundle = replace(bundle, snapshots=keys)
+    path = tmp_path / "split.csv"
+    original = data_utils.freeze_patient_split(bundle, path)
+    reloaded = data_utils.freeze_patient_split(bundle, path)
+    pd.testing.assert_frame_equal(original, reloaded, check_dtype=False)
+    assert set(replacements.values()).issubset(set(reloaded.PATIENT_ID))
+
+
+def test_split_and_summary_ignore_unused_categorical_patients(tmp_path):
+    bundle = make_bundle()
+    keys = bundle.snapshots.copy()
+    keys["PATIENT_ID"] = pd.Categorical(
+        keys.PATIENT_ID, categories=[*reversed(keys.PATIENT_ID.unique()), "UNUSED_PATIENT"],
+    )
+    manifest = data_utils.freeze_patient_split(replace(bundle, snapshots=keys), tmp_path / "split.csv")
+    string_manifest = data_utils.freeze_patient_split(bundle, tmp_path / "string_split.csv")
+    pd.testing.assert_frame_equal(manifest, string_manifest)
+    summary = data_utils.split_summary(manifest)
+    assert summary.n_patients.sum() == 80
+    assert summary.n_snapshots.sum() == 160
+    assert summary.n_resp1.sum() == 40
+    assert summary.n_positive_patients.sum() == 40
+    assert "UNUSED_PATIENT" not in set(manifest.PATIENT_ID)
 
 
 def test_existing_split_reused_with_aligned_cohort_in_different_row_order(tmp_path):

@@ -8,9 +8,11 @@ import pandas as pd
 import pytest
 import torch
 
+from src import training
 from src.data_utils import SequenceBundle
 from src.metrics import classification_metrics, select_validation_threshold
 from src.model import ClaimsTransformer, ModelConfig
+from src.reproducibility import seed_everything
 from src.training import TrainConfig, load_trained_model, score_split, train_transformer
 
 
@@ -65,6 +67,35 @@ def test_validation_threshold_boundaries_and_ties():
         select_validation_threshold([0, 0], [0.1, 0.9])
 
 
+@pytest.mark.parametrize("scores", [
+    np.arange(8, 0, -1, dtype=float) / 9,
+    np.array([0.9, 0.9, 0.8, 0.8, 0.6, 0.5, 0.5, 0.2]),
+])
+def test_validation_threshold_exact_f1_ties_survive_rounding_and_score_groups(scores):
+    labels = np.array([0, 0, 1, 1, 1, 0, 0, 1])
+    # At scores[4]: TP=3, FP=2, FN=1. At scores[7]: TP=4, FP=4,
+    # FN=0. Both have exact F1=2/3, though a floating precision/recall
+    # harmonic mean can make the lower cutoff appear slightly better.
+    assert select_validation_threshold(labels, scores) == scores[4]
+    permutation = np.array([7, 0, 4, 2, 5, 1, 6, 3])
+    assert select_validation_threshold(labels[permutation], scores[permutation]) == scores[4]
+
+
+@pytest.mark.parametrize("operation", ["threshold", "classification"])
+@pytest.mark.parametrize("scores", [
+    np.array([0.2 + 0.1j, 0.8]),
+    np.array([0.2 + 0j, 0.8 + 0j]),
+    np.array([np.complex128(0.2 + 0.1j), 0.8], dtype=object),
+    np.array([complex(0.2, 0), 0.8], dtype=object),
+])
+def test_classification_helpers_reject_complex_scores_before_conversion(operation, scores):
+    with pytest.raises(ValueError, match="real values"):
+        if operation == "threshold":
+            select_validation_threshold([0, 1], scores)
+        else:
+            classification_metrics([0, 1], scores, threshold=0.5)
+
+
 def test_fixed_threshold_metrics():
     metrics = classification_metrics([0, 1, 0, 1], [0.1, 0.8, 0.7, 0.2], threshold=0.7)
     assert {key: metrics[key] for key in ["tn", "fp", "fn", "tp"]} == {
@@ -96,6 +127,77 @@ def test_checkpoint_reload_scores_identity_and_fixed_threshold(trained):
     assert predictions.P_RESP1.between(0, 1).all()
     assert set(predictions.SPLIT) == {"TEST"}
     _, payload = load_trained_model(run["checkpoint_path"], device="cpu")
+    validation = score_split(bundle, manifest, run["checkpoint_path"], split="VALIDATION", device="cpu")
+    assert payload["validation_threshold"] == select_validation_threshold(validation.RESP, validation.P_RESP1)
+
+
+def test_training_updates_every_trainable_parameter_group(trained):
+    _, _, model_config, train_config, run = trained
+    seed_everything(train_config.seed)
+    initial = ClaimsTransformer(model_config).state_dict()
+    model, _ = load_trained_model(run["checkpoint_path"], device="cpu")
+    learned = model.state_dict()
+    groups = {
+        "projection": ("projection.",),
+        "positions": ("position",),
+        "attention": ("encoder.layers.0.self_attn.",),
+        "feedforward": ("encoder.layers.0.linear1.", "encoder.layers.0.linear2."),
+        "normalization": ("encoder.layers.0.norm1.", "encoder.layers.0.norm2.", "norm."),
+        "classifier": ("head.",),
+    }
+    for group, prefixes in groups.items():
+        names = [name for name in initial if name.startswith(prefixes)]
+        assert names, group
+        assert any(not torch.equal(initial[name], learned[name]) for name in names), group
+
+
+def test_validation_and_scoring_leave_model_weights_unchanged(trained, monkeypatch):
+    bundle, manifest, _, config, run = trained
+    model, payload = load_trained_model(run["checkpoint_path"], device="cpu")
+    original = {name: value.clone() for name, value in model.state_dict().items()}
+    indices = training.split_indices(bundle, manifest)
+    loader = training._loader(bundle, indices["VALIDATION"], config)
+    criterion = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor(payload["train_pos_weight"]))
+    training._evaluate(model, loader, criterion, torch.device("cpu"), config.transform)
+    assert all(torch.equal(original[name], value) for name, value in model.state_dict().items())
+    # Observe the very model used for scoring, rather than just reloading the
+    # saved file afterward, which would miss an in-memory mutation.
+    monkeypatch.setattr(training, "load_trained_model", lambda *args, **kwargs: (model, payload))
+    score_split(bundle, manifest, run["checkpoint_path"], split="TEST", device="cpu")
+    assert all(torch.equal(original[name], value) for name, value in model.state_dict().items())
+
+
+@pytest.mark.parametrize("validation_aps,best_epoch", [
+    ([0.70, 0.71, 0.705], 2),  # New best below min_delta still earns a checkpoint.
+    ([0.70, 0.70, 0.69], 1),  # An equal-AP checkpoint keeps the earliest epoch.
+])
+def test_early_stopping_restores_best_checkpoint_independent_of_min_delta(
+    trained, tmp_path, monkeypatch, validation_aps, best_epoch,
+):
+    bundle, manifest, model_config, config, _ = trained
+    observed_states = []
+    original_evaluate = training._evaluate
+
+    def observe_validation(model, *args, **kwargs):
+        observed_states.append({name: value.detach().cpu().clone()
+                                for name, value in model.state_dict().items()})
+        return original_evaluate(model, *args, **kwargs)
+
+    aps = iter(validation_aps)
+    monkeypatch.setattr(training, "_evaluate", observe_validation)
+    monkeypatch.setattr(training, "average_precision_score", lambda *args, **kwargs: next(aps))
+    run = train_transformer(
+        bundle, manifest, tmp_path / "controlled_validation",
+        model_config=model_config,
+        train_config=replace(config, epochs=10, patience=2, min_delta=0.05, print_progress=False),
+    )
+    assert run["summary"]["epochs_completed"] == 3
+    assert run["summary"]["best_epoch"] == best_epoch
+    assert run["summary"]["best_validation_average_precision"] == max(validation_aps)
+    model, payload = load_trained_model(run["checkpoint_path"], device="cpu")
+    expected = observed_states[best_epoch - 1]
+    assert all(torch.equal(expected[name], value) for name, value in model.state_dict().items())
+    assert all(torch.equal(expected[name], value) for name, value in observed_states[-1].items())
     validation = score_split(bundle, manifest, run["checkpoint_path"], split="VALIDATION", device="cpu")
     assert payload["validation_threshold"] == select_validation_threshold(validation.RESP, validation.P_RESP1)
 

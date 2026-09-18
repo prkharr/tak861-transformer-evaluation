@@ -89,16 +89,25 @@ def bundle_from_monthly(frame: pd.DataFrame, feature_names: list[str] | tuple[st
     metadata["END_DT"] = _dates(metadata.END_DT)
     _check(metadata.PATIENT_ID.notna().all() and metadata.PATIENT_ID.map(lambda x: isinstance(x, str)).all(),
            "Patient identifiers must be nonmissing strings; do not infer lost leading zeros.")
+    # Canonical key ordering must not depend on pandas categorical metadata.
+    metadata["PATIENT_ID"] = metadata.PATIENT_ID.astype(str)
     metadata["RESP"] = _binary(metadata.RESP, "Monthly input")
     _check(metadata.TIME_STEP.isin(range(expected_steps)).all(), "Invalid or missing timestep.")
     _check(not metadata.duplicated(KEYS + ["TIME_STEP"]).any(), "Duplicate snapshot-month rows.")
-    grouped = metadata.groupby(KEYS, sort=False)
+    grouped = metadata.groupby(KEYS, sort=False, observed=True)
     _check(grouped.RESP.nunique().eq(1).all(), "A snapshot has inconsistent RESP values across months.")
     _check(grouped.size().eq(expected_steps).all(), "Each snapshot must have every timestep exactly once; no snapshots may be skipped.")
     # Stable positional indexing works even when the caller's DataFrame index repeats.
     metadata["_row"] = np.arange(len(frame))
     ordered = metadata.sort_values(KEYS + ["TIME_STEP"]).reset_index(drop=True)
     order = ordered._row.to_numpy()
+    # NumPy silently drops imaginary components when casting complex arrays.
+    # Check before conversion, including NumPy complex scalars in object columns.
+    for name in names:
+        column = frame[name].to_numpy(copy=False)
+        _check(not np.iscomplexobj(column)
+               and not (column.dtype == object and any(isinstance(value, (complex, np.complexfloating)) for value in column)),
+               "All feature values must be real numeric raw counts.")
     try:
         values = frame.loc[:, list(names)].to_numpy(dtype=np.float32)[order]
     except (TypeError, ValueError, OverflowError):
@@ -196,14 +205,15 @@ def freeze_patient_split(bundle: SequenceBundle, path: str | Path, seed: int = 4
     path = Path(path)
     _check(path.suffix.lower() == ".csv", "The frozen split path must end in .csv.")
     if path.exists():
-        manifest = pd.read_csv(path, dtype={"PATIENT_ID": "string", "END_DT": "string"})
+        manifest = pd.read_csv(path, dtype={"PATIENT_ID": "string", "END_DT": "string"}, keep_default_na=False)
         split_indices(bundle, manifest)
         return validate_manifest(manifest)
     proportions = np.array([train_fraction, validation_fraction, test_fraction], dtype=float)
     _check(np.isfinite(proportions).all() and (proportions > 0).all() and np.isclose(proportions.sum(), 1),
            "Split fractions must be positive and sum to 1.")
     cohort = bundle.snapshots[KEYS].copy().assign(RESP=bundle.y)
-    patients = cohort.groupby("PATIENT_ID", sort=True).RESP.max()
+    cohort["PATIENT_ID"] = cohort.PATIENT_ID.astype(str)
+    patients = cohort.groupby("PATIENT_ID", sort=True, observed=True).RESP.max()
     _check(patients.nunique() == 2, "Patient-stratified split requires positive and negative patient groups.")
     try:
         train, temporary = train_test_split(patients.index.to_numpy(), train_size=train_fraction,
@@ -224,8 +234,8 @@ def freeze_patient_split(bundle: SequenceBundle, path: str | Path, seed: int = 4
 
 def split_summary(manifest: pd.DataFrame) -> pd.DataFrame:
     checked = validate_manifest(manifest)
-    table = checked.groupby("SPLIT").agg(n_snapshots=("RESP", "size"), n_patients=("PATIENT_ID", "nunique"), n_resp1=("RESP", "sum"))
-    positive_patients = checked.groupby(["SPLIT", "PATIENT_ID"]).RESP.max().groupby("SPLIT").sum()
+    table = checked.groupby("SPLIT", observed=True).agg(n_snapshots=("RESP", "size"), n_patients=("PATIENT_ID", "nunique"), n_resp1=("RESP", "sum"))
+    positive_patients = checked.groupby(["SPLIT", "PATIENT_ID"], observed=True).RESP.max().groupby("SPLIT", observed=True).sum()
     table["n_positive_patients"] = positive_patients
     table["n_resp0"] = table.n_snapshots - table.n_resp1
     table["response_rate"] = table.n_resp1 / table.n_snapshots

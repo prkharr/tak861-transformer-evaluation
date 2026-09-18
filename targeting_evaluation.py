@@ -33,6 +33,8 @@ def _identities(frame: pd.DataFrame, name: str) -> pd.DataFrame:
              f"{name}: PATIENT_ID must be read as strings to preserve leading zeros.")
     _require(out.PATIENT_ID.str.strip().eq(out.PATIENT_ID).all()
              and out.PATIENT_ID.str.len().gt(0).all(), f"{name}: invalid patient key whitespace.")
+    # Canonical ordering must depend on literal keys, never category metadata.
+    out["PATIENT_ID"] = out.PATIENT_ID.astype(str)
     # Canonical dates prevent silent merging of distinct intraday snapshots.
     dates = out.END_DT.astype(str)
     _require(dates.str.fullmatch(r"\d{4}-\d{2}-\d{2}").all(),
@@ -59,7 +61,7 @@ def validate_manifest(manifest: pd.DataFrame) -> pd.DataFrame:
              "Manifest: SPLIT must be TRAIN, VALIDATION, or TEST.")
     _require(set(out.SPLIT) == {"TRAIN", "VALIDATION", "TEST"},
              "Manifest must include all three splits, not only TEST rows.")
-    _require(out.groupby("PATIENT_ID").SPLIT.nunique().eq(1).all(),
+    _require(out.groupby("PATIENT_ID", observed=True).SPLIT.nunique().eq(1).all(),
              "Manifest: a patient crosses splits; patient-level leakage detected.")
     return out[KEYS + ["RESP", "SPLIT"]].sort_values(KEYS).reset_index(drop=True)
 
@@ -89,8 +91,9 @@ def validate_inputs(manifest: pd.DataFrame, transformer: pd.DataFrame) -> pd.Dat
         _require(len(pred) == len(expected) and expected_index.isin(actual_index).all(),
                  f"{name}: predictions must exactly cover the frozen TEST snapshots; no missing or extra rows.")
         scores = pd.to_numeric(pred.P_RESP1, errors="coerce")
-        _require(np.isfinite(scores).all() and scores.between(0, 1).all(),
-                 f"{name}: probabilities must be finite and within [0, 1].")
+        _require(not np.iscomplexobj(scores) and np.isfinite(scores).all()
+                 and scores.between(0, 1).all(),
+                 f"{name}: probabilities must be real, finite, and within [0, 1].")
         pred["P_RESP1"] = scores.astype(float)
         if "SPLIT" in pred:
             _require(pred.SPLIT.eq("TEST").all(), f"{name}: score file includes non-TEST rows.")
@@ -132,7 +135,7 @@ def _snapshot_hash(patient: str, end_date: str) -> str:
 def _score_order(frame: pd.DataFrame, score_column: str) -> np.ndarray:
     """This function cannot access labels: select key/score columns immediately."""
     scoring = frame[KEYS + [score_column]].copy()
-    _require(np.isfinite(scoring[score_column]).all()
+    _require(not np.iscomplexobj(scoring[score_column]) and np.isfinite(scoring[score_column]).all()
              and scoring[score_column].between(0, 1).all(), "Invalid predicted probabilities.")
     scoring["_tie"] = [_snapshot_hash(p, d) for p, d in scoring[KEYS].itertuples(index=False, name=None)]
     scoring["_position"] = np.arange(len(scoring))
@@ -397,7 +400,10 @@ def write_report(results: dict[str, pd.DataFrame], output_dir: str | Path,
 def read_input(path: str | Path) -> pd.DataFrame:
     path = Path(path)
     if path.suffix.lower() == ".csv":
-        return pd.read_csv(path, dtype={"PATIENT_ID": "string", "END_DT": "string"})
+        # Patient identifiers such as "NA" or "NULL" are literal keys, not missing
+        # values. Downstream required-field validation rejects empty fields.
+        return pd.read_csv(path, dtype={"PATIENT_ID": "string", "END_DT": "string"},
+                           keep_default_na=False)
     if path.suffix.lower() == ".parquet":
         return pd.read_parquet(path)
     raise ValueError("Input files must be CSV or Parquet.")
