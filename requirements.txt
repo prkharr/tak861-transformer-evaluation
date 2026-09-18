@@ -1,0 +1,10 @@
+# Python 3.9 or newer. Use the organization's approved package mirror as needed.
+numpy>=1.26,<3
+pandas>=2.2,<3
+matplotlib>=3.8,<4
+scikit-learn>=1.5,<2
+pyarrow>=15,<25
+nbformat>=5.10,<6
+nbclient>=0.10,<1
+ipykernel>=6,<7
+pytest>=8,<9
