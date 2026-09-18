@@ -1,5 +1,7 @@
 # Transformer evaluation specification
 
+The shared ranking definitions below apply to both the checkpoint-based `03_transformer_evaluation.ipynb` and the root predictions-only `06_transformer_evaluation.ipynb`. Notebook 03 additionally reports threshold classification metrics and a confusion matrix using the threshold frozen on VALIDATION during notebook 02, plus a response-rate-by-decile chart.
+
 ## Scope and unit
 
 Evaluate existing Transformer probabilities for every snapshot in the trained model's original, held-out TEST assignment. The intended upstream population is historical V63, using claims vintage `20260825` and the established `RESP=1` definition: first advanced-therapy initiation within the forward 90-day outcome window. This evaluation does not rebuild that population or verify upstream outcome/observability logic.
@@ -69,7 +71,7 @@ The cumulative gains chart plots `(N_d/N, P_d/P)` and includes the origin. The r
 
 The supporting global metrics are average precision and ROC-AUC. Average precision follows [scikit-learn's definition](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.average_precision_score.html): the sum of precision at each recall increment, weighted by that recall increment. It is non-interpolated and is not trapezoidal PR-AUC. ROC-AUC requires both outcome classes.
 
-No probability classification threshold is learned from TEST. Capacity cutoffs are predeclared at 10%, 20% and 30% using ranks only. Threshold-based F1 and a confusion matrix require a separately frozen operating threshold selected on VALIDATION; they are outside this ranking-focused run.
+No probability classification threshold is learned from TEST. Capacity cutoffs are predeclared at 10%, 20% and 30% using ranks only. Notebook 02 selects maximum-F1 threshold on its best checkpoint's VALIDATION predictions (highest threshold on exact ties). Notebook 03 applies that threshold unchanged, classifying scores greater than or equal to the threshold as positive. Threshold precision, recall and F1 use scikit-learn's `zero_division=0` convention; that convention does not alter undefined decile recall/lift. The root predictions-only notebook does not invent a threshold and remains focused on ranking.
 
 ## Edge cases and interpretation
 

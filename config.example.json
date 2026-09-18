@@ -1,0 +1,53 @@
+{
+  "input": {
+    "mode": "monthly_parquet",
+    "path": "data/tensor_complete.parquet",
+    "feature_order_json": null
+  },
+  "bundle_dir": "data/sequence_bundle",
+  "manifest_path": "artifacts/frozen_split/snapshot_manifest.csv",
+  "run_dir": "artifacts/transformer_run_001",
+  "report_dir": "artifacts/transformer_test_001",
+  "expected": {
+    "shape": [23151, 12, 1028],
+    "patients": 12447,
+    "resp1": 1345,
+    "domain_counts": {"RX": 42, "DX": 490, "PX": 496}
+  },
+  "source_review": {
+    "population_version": "V63",
+    "claims_vintage": "20260825",
+    "value_representation": "raw_counts",
+    "feature_order_verified": false,
+    "snapshot_semantics_verified": false,
+    "predictor_cutoff_verified": false,
+    "outcome_events_excluded": false,
+    "review_reference": ""
+  },
+  "split": {
+    "seed": 42,
+    "train_fraction": 0.70,
+    "validation_fraction": 0.15,
+    "test_fraction": 0.15
+  },
+  "model": {
+    "d_model": 128,
+    "n_heads": 4,
+    "encoder_layers": 2,
+    "feedforward_dim": 256,
+    "dropout": 0.2
+  },
+  "training": {
+    "seed": 42,
+    "epochs": 20,
+    "patience": 5,
+    "min_delta": 0.0001,
+    "batch_size": 64,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001,
+    "grad_clip": 1.0,
+    "transform": "log1p",
+    "device": "auto",
+    "num_workers": 0
+  }
+}

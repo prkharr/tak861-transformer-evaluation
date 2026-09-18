@@ -1,6 +1,8 @@
 # Local configuration and credentials
 .env
 .env.*
+config.local.json
+*.local.json
 *.pem
 *.key
 credentials*
