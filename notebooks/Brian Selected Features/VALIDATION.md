@@ -2,7 +2,7 @@
 
 ## Completed locally
 
-- 11 focused tests passed using Python 3.9, PyTorch 2.8 and scikit-learn 1.6.
+- 10 focused tests passed using Python 3.9, PyTorch 2.8 and scikit-learn 1.6.
 - Exact list parsing/order and leading underscores/quoted names checked.
 - Fractional Decimal values retained; missing feature values remain missing until
   TRAIN-only preprocessing. Duplicate/missing source keys and conflicting labels fail.
@@ -10,15 +10,15 @@
 - TRAIN-only medians/scaling, all-missing columns and input fingerprints checked.
 - Lift calculations checked for unequal decile sizes and tied scores; tie order is
   deterministic and independent of the outcome.
-- Transformer, logistic and histogram-gradient-boosting fit/predict/serialization
-  round trips passed on synthetic data.
+- The single Transformer fit/predict/serialization round trip passed on synthetic data.
 - All four notebook code paths ran in separate Python namespaces against an
   in-memory synthetic warehouse. The synthetic population has the expected
   23,151 snapshots / 12,447 patients / 1,345 positives and original split sizes,
   but contains invented identifiers and generated feature values, not private data.
-- That test exercised all six candidates with shortened settings, authoritative
+- That test exercised the single Transformer with shortened settings, authoritative
   list/summary disagreement, saved preprocessing, model reload, validation-only
-  winner selection, training lift, test reporting, plots and artifact saving.
+  checkpoint selection, training lift, test reporting, plots and artifact saving.
+- A configuration check confirms exactly one Transformer with dropout 0.35.
 - Warehouse artifact chunk round-trip and missing-chunk rejection checked.
 
 The generated notebooks contain eight code cells each and no execution outputs.
@@ -31,8 +31,10 @@ helper files are required by the delivered notebooks.
 - Spark/Snowflake connector behavior, role permissions and runtime packages must
   be available on the user's approved compute. The synthetic warehouse exercises
   orchestration, not a live integration.
-- No improvement in real-data lift, exact reproduction of Brian's LightGBM, source
-  feature historical availability or label-construction correctness is claimed.
+- User-supplied screenshots show earlier real-data top-10% lift of 3.782 TRAIN,
+  2.963 VALIDATION and 3.608 TEST for the retained Transformer configuration.
+  The simplified delivery has not been rerun on private data. Exact reproduction
+  of Brian's model, historical availability and label correctness are not established.
 - Matplotlib's bundled pyparsing dependencies emitted deprecation warnings during
   plotting tests; these did not prevent chart generation or test completion.
 

@@ -44,7 +44,7 @@ DATABASE = "DSVC_TAKEDA_TA_PRIVATE"
 sf_options_dl_poc.update({"sfDatabase": DATABASE, "sfSchema": "DS_ML"})
 SOURCE_PREFIX = "TAK861_TX_READY_V63"
 PREFIX = SOURCE_PREFIX + "_DL_POC"
-EXPERIMENT_PREFIX = PREFIX + "_BRIAN_SELECTED_V1"
+EXPERIMENT_PREFIX = PREFIX + "_MANUAL_TRANSFORMER_V1"
 DATASET_ID = "F001"  # Change to freeze a different source snapshot; use the same value in all four notebooks.
 SUITE_ID = "S001"    # Change for different settings/code/seeds; use the same value in notebooks 03 and 04.
 import re
@@ -166,7 +166,7 @@ training = [
 SEED = 42
 MAX_EPOCHS = 30
 PATIENCE = 6
-# Select by VALIDATION top-10% lift, then VALIDATION average precision, then recipe order.
+# Select by VALIDATION top-10% lift, then VALIDATION average precision, then earliest checkpoint.
 # TEST is not scored by this notebook. Training lift is a fit diagnostic, not a selection criterion.
 '''),
     cell(2, "Embedded models, input checks and warehouse storage", COMMON + '\n\n' + MODELS),
@@ -176,10 +176,12 @@ PATIENCE = 6
         Xv, Mv, yv = experiment_partition(data, "validation")
         train_meta = data["metadata"].iloc[data["indices"]["train"]].reset_index(drop=True)
         val_meta = data["metadata"].iloc[data["indices"]["validation"]].reset_index(drop=True)
-        print("Train:", Xt.shape, "| Validation:", Xv.shape)
+        print("Train tensor:", torch.as_tensor(Xt).shape, "| Validation tensor:", torch.as_tensor(Xv).shape)
     '''),
-    cell(4, "Declare controlled recipes on the same selected features", '''
+    cell(4, "Configure one Transformer on the manual-feature tensor", '''
         recipes = default_recipes()
+        if len(recipes) != 1 or recipes[0]["kind"] != "transformer":
+            raise ValueError("This notebook runs exactly one Transformer.")
         settings = {"seed": SEED, "max_epochs": MAX_EPOCHS, "patience": PATIENCE,
                     "selection": "validation_top10_lift_then_average_precision"}
         suite_contract = {"input_id": data["input_id"], "implementation_sha256": IMPLEMENTATION_SHA256,
@@ -189,49 +191,47 @@ PATIENCE = 6
             if saved_selection["contract"] != suite_contract:
                 raise ValueError("This suite already contains different inputs/settings/code. Choose a new SUITE_ID.")
         display(pd.DataFrame([dict(name=r["name"], kind=r["kind"], features=Xt.shape[1], **r["settings"]) for r in recipes]))
-        print("Tree comparator uses sklearn histogram gradient boosting; it does not reproduce Brian's LightGBM.")
+        print("Input tensor: [snapshots, manual features]; internal tokens: [batch, features + 1, width].")
     '''),
-    cell(5, "Train or resume each candidate; save TRAIN and VALIDATION lift", '''
+    cell(5, "Train the Transformer; save TRAIN and VALIDATION lift", '''
         candidate_rows, candidate_reports = [], {}
-        for recipe in recipes:
-            table = candidate_table(recipe["name"])
-            contract = candidate_contract(data, recipe, settings)
-            if table_exists(table):
-                saved = read_artifacts(table, MODEL_NAMES)
-                report = json.loads(saved["candidate.json"])
-                if report["contract"] != contract:
-                    raise ValueError("Candidate provenance differs. Choose a new SUITE_ID.")
-                result = load_candidate(saved["model.bin"])
-                print("Reusing verified candidate:", recipe["name"])
-            else:
-                result = fit_candidate(recipe, Xt, Mt, yt, Xv, Mv, yv, seed=SEED, max_epochs=MAX_EPOCHS, patience=PATIENCE)
-                pt = predict_candidate(result, Xt, Mt)
-                pv = predict_candidate(result, Xv, Mv)
-                threshold = select_validation_threshold(yv, pv)
-                tm, td, tt = split_report(train_meta, pt, threshold)
-                vm, vd, vt = split_report(val_meta, pv, threshold)
-                report = {"contract": contract, "threshold": threshold, "best_epoch": result["best_epoch"],
-                          "train": tm, "validation": vm, "runtime": result["runtime"], "seconds": result["seconds"],
-                          "train_deciles": td.to_dict("records"), "validation_deciles": vd.to_dict("records"),
-                          "train_top_k": tt.to_dict("records"), "validation_top_k": vt.to_dict("records"),
-                          "history": result["history"]}
-                save_artifacts(table, {"model.bin": dump_candidate(result), "candidate.json": json_bytes(report),
-                                      "history.csv": pd.DataFrame(result["history"]).to_csv(index=False).encode()})
-            candidate_reports[recipe["name"]] = report
-            candidate_rows.append({"name": recipe["name"], "kind": recipe["kind"],
-                "train_top10_lift": report["train"]["top10_lift"], "train_ap": report["train"]["average_precision"],
-                "validation_top10_lift": report["validation"]["top10_lift"], "validation_ap": report["validation"]["average_precision"],
-                "lift_gap": report["train"]["top10_lift"]-report["validation"]["top10_lift"],
-                "best_epoch": report["best_epoch"], "threshold": report["threshold"]})
-            display(pd.DataFrame(candidate_rows))
-            del result
+        recipe = recipes[0]
+        table = candidate_table(recipe["name"])
+        contract = candidate_contract(data, recipe, settings)
+        if table_exists(table):
+            saved = read_artifacts(table, MODEL_NAMES)
+            report = json.loads(saved["candidate.json"])
+            if report["contract"] != contract:
+                raise ValueError("Candidate provenance differs. Choose a new SUITE_ID.")
+            result = load_candidate(saved["model.bin"])
+            print("Reusing verified candidate:", recipe["name"])
+        else:
+            result = fit_candidate(recipe, Xt, Mt, yt, Xv, Mv, yv, seed=SEED, max_epochs=MAX_EPOCHS, patience=PATIENCE)
+            pt = predict_candidate(result, Xt, Mt)
+            pv = predict_candidate(result, Xv, Mv)
+            threshold = select_validation_threshold(yv, pv)
+            tm, td, tt = split_report(train_meta, pt, threshold)
+            vm, vd, vt = split_report(val_meta, pv, threshold)
+            report = {"contract": contract, "threshold": threshold, "best_epoch": result["best_epoch"],
+                      "train": tm, "validation": vm, "runtime": result["runtime"], "seconds": result["seconds"],
+                      "train_deciles": td.to_dict("records"), "validation_deciles": vd.to_dict("records"),
+                      "train_top_k": tt.to_dict("records"), "validation_top_k": vt.to_dict("records"),
+                      "history": result["history"]}
+            save_artifacts(table, {"model.bin": dump_candidate(result), "candidate.json": json_bytes(report),
+                                  "history.csv": pd.DataFrame(result["history"]).to_csv(index=False).encode()})
+        candidate_reports[recipe["name"]] = report
+        candidate_rows.append({"name": recipe["name"], "kind": recipe["kind"],
+            "train_top10_lift": report["train"]["top10_lift"], "train_ap": report["train"]["average_precision"],
+            "validation_top10_lift": report["validation"]["top10_lift"], "validation_ap": report["validation"]["average_precision"],
+            "lift_gap": report["train"]["top10_lift"]-report["validation"]["top10_lift"],
+            "best_epoch": report["best_epoch"], "threshold": report["threshold"]})
+        display(pd.DataFrame(candidate_rows))
+        del result
     '''),
-    cell(6, "Freeze the winner using VALIDATION only", '''
+    cell(6, "Freeze the best validation checkpoint and threshold", '''
         comparison = pd.DataFrame(candidate_rows)
-        best_index = max(range(len(candidate_rows)), key=lambda i: (candidate_rows[i]["validation_top10_lift"],
-                                                                  candidate_rows[i]["validation_ap"], -i))
-        winner = candidate_rows[best_index]["name"]
-        selected_recipe = recipes[best_index]
+        winner = recipes[0]["name"]
+        selected_recipe = recipes[0]
         report = candidate_reports[winner]
         selection = {"contract": suite_contract, "winner": winner, "recipe": selected_recipe,
                      "model_table": candidate_table(winner), "threshold": report["threshold"],
@@ -239,13 +239,13 @@ PATIENCE = 6
                      "test_used_for_selection": False}
         save_artifacts(SELECTION_TABLE, {"selection.json": json_bytes(selection),
                                         "comparison.csv": comparison.to_csv(index=False).encode()})
-        print("Frozen winner:", winner, "| Validation top-10% lift:", report["validation"]["top10_lift"])
+        print("Saved Transformer:", winner, "| Validation top-10% lift:", report["validation"]["top10_lift"])
     '''),
     cell(7, "Plot training/validation lift and loss", '''
         import matplotlib.pyplot as plt
         axes = comparison.set_index("name")[["train_top10_lift", "validation_top10_lift"]].plot.bar(figsize=(12, 4))
         axes.set_ylabel("Top-10% lift")
-        axes.set_title("Training lift is in-sample; select on validation")
+        axes.set_title("One Transformer: training and validation lift")
         plt.tight_layout()
         plt.show()
         for name, report in candidate_reports.items():
@@ -257,11 +257,11 @@ PATIENCE = 6
                 fig.tight_layout()
                 plt.show()
     '''),
-    cell(8, "Training complete; all candidate training lift tables available", '''
+    cell(8, "Training complete; review training lift and overfitting", '''
         for name, report in candidate_reports.items():
             print(name, "TRAIN deciles (in-sample)")
             display(pd.DataFrame(report["train_deciles"]))
-        print("Next: notebook 04 evaluates only the frozen winner on TEST.")
+        print("Next: notebook 04 evaluates the saved Transformer on TEST.")
         print("Keep validation selection separate from TEST; this existing TEST set has already been inspected.")
     '''),
 ]
@@ -269,7 +269,7 @@ PATIENCE = 6
 evaluation = [
     cell(1, "Connection and the same dataset/suite IDs", CONFIG),
     cell(2, "Embedded model loading, metrics and report helpers", COMMON + '\n\n' + MODELS),
-    cell(3, "Load the frozen winner and verify provenance", '''
+    cell(3, "Load the saved Transformer and verify provenance", '''
         data = load_experiment()
         selection_blobs = read_artifacts(SELECTION_TABLE, SELECTION_NAMES)
         selection = json.loads(selection_blobs["selection.json"])
@@ -286,7 +286,7 @@ evaluation = [
             raise ValueError("Saved candidate differs from the frozen winner/threshold.")
         model = load_candidate(saved["model.bin"])
         threshold = selection["threshold"]
-        print("Winner:", selection["winner"], "| Frozen validation threshold:", threshold)
+        print("Transformer:", selection["winner"], "| Frozen validation threshold:", threshold)
     '''),
     cell(4, "Score TRAIN, VALIDATION and TEST using the identical saved model", '''
         reports, probabilities = {}, {}
@@ -346,7 +346,7 @@ evaluation = [
                     "A later untouched cohort is needed for independent confirmation of an improvement."]}
         artifacts = {"evaluation.json": json_bytes(report), "metrics.csv": metrics_frame.to_csv(index=False).encode(),
                      "lift.png": lift_png, "classification.png": classification_png,
-                     "candidate_comparison.csv": selection_blobs["comparison.csv"]}
+                     "training_summary.csv": selection_blobs["comparison.csv"]}
         for split, item in reports.items():
             artifacts[split + "_deciles.csv"] = item["deciles"].to_csv(index=False).encode()
             artifacts[split + "_top_k.csv"] = item["top"].to_csv(index=False).encode()
@@ -370,7 +370,7 @@ evaluation = [
             print(f"{split.upper()}: top-10% lift={m['top10_lift']:.3f}, AP={m['average_precision']:.4f}, AUC={m['roc_auc']:.4f}")
         print("Training lift measures fit to training data; higher training lift alone is not success.")
         print("Compare experiments on validation. TEST results are retrospective, not untouched confirmation.")
-        print("Goal: improve lift; no improvement is claimed until these notebooks run on the private data.")
+        print("Compare the same top-10% lift on the same split; training lift alone does not establish improvement.")
         print("Artifacts saved under:", EVALUATION_TABLE)
     '''),
 ]

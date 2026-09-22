@@ -1,90 +1,27 @@
-# Brian's selected features: four self-contained notebooks
+# Manual features → tensor → split → Transformer → lift
 
-Run 01, 02, 03, then 04 on the approved Spark/Databricks compute previously used
-to connect to Snowflake. Put your existing private `sf_options` connection setup
-at the top of cell 1 in each notebook. No credentials are included. All application
-code is embedded in the four notebooks; no repository checkout, helper upload,
-CSV feature transcription or extra model file is needed.
+Run the four notebooks in order on the approved Databricks compute. Paste your private `sf_options` at the top of cell 1 in each. All application code is embedded. Required runtime packages: PyTorch, NumPy, pandas, scikit-learn, matplotlib, joblib and the Spark Snowflake connector.
 
-The runtime needs the Spark Snowflake connector, NumPy, pandas, scikit-learn,
-PyTorch, matplotlib and joblib. The notebooks do not download dependencies.
-Use the same software runtime for training and reloading its saved models.
+1. **01 — Prepare input.** Read Brian's exact ordered feature list from MODEL_TYPE.FEATURES and values from MODEL_DATA. Your screenshots confirm 49 features. Preserve patient/date keys, labels, fractional values and missingness.
+2. **02 — Split and preprocess.** Reuse original patient assignments and dates, verified against RUN_001. Fit imputation/scaling on TRAIN only. Keep 16,256 training, 3,481 validation and 3,414 test snapshots.
+3. **03 — Train one Transformer.** Numeric input is a [snapshots, features] tensor with a matching missingness mask. Internally each feature becomes a token, producing [batch, features + 1, 64] including the classification token. Show training/validation loss and lift every epoch.
+4. **04 — Evaluate.** Reload the best validation checkpoint; report training/validation/test lift, full deciles, top-5/10/20/30% results, AP, ROC AUC, precision, recall and confusion counts.
 
-## Inputs and dates
+Exactly one configuration is trained: 2 layers, 4 heads, width 64, feedforward 128, dropout 0.35, AdamW learning rate 0.0005, weight decay 0.0001, batch size 128, seed 42, maximum 30 epochs, patience 6. These are the dropout Transformer settings already selected on validation in the supplied results. No other models or Transformer variants run.
 
-- Read the exact ordered list in
-  `DSVC_TAKEDA_TA_PRIVATE.DS_ML.TAK861_TX_READY_V63_MODEL_TYPE.FEATURES`.
-- Read only those feature values from `TAK861_TX_READY_V63_MODEL_DATA`.
-- Audit the list against `TAK861_TX_READY_V63_FINAL_MODEL`. The configured list
-  is authoritative: an omitted final-summary row does not silently remove a predictor.
-- Preserve all 23,151 saved `PATIENT_ID + END_DT` snapshots, 12,447 patients and
-  1,345 positive labels. Exact date/key/label coverage must pass again at extraction.
-- Reuse `TAK861_TX_READY_V63_DL_POC_PATIENT_SPLIT`, checked against the original
-  `TAK861_TX_READY_V63_DL_POC_MODEL_RUN_001` artifact fingerprints.
-- Source manual-feature tables and the 1,028-feature monthly tensor are not input
-  dependencies for these notebooks. No claim histories or monthly dates are reconstructed.
+Snapshot summaries are not monthly sequences. This feature-token Transformer does not repeat summaries over artificial months. The original model used monthly claim-category tokens, so this is not an architecture-controlled comparison with the original 1,028-feature model.
 
-Keep DATASET_ID (`F001`) identical in all notebooks and SUITE_ID (`S001`) identical
-in notebooks 03/04. Use a new dataset ID for changed source values/list and a new
-suite ID for changed code, settings or seeds. Outputs live under
-`TAK861_TX_READY_V63_DL_POC_BRIAN_SELECTED_V1` in DS_ML. Writes use error-if-exists
-and checksum-verified read-back; matching saved runs can be resumed.
+## Preserve the completed experiment
 
-## What each notebook does
+Run all four notebooks. New outputs use TAK861_TX_READY_V63_DL_POC_MANUAL_TRANSFORMER_V1, dataset F001, run S001. The completed SELECTED_V1 experiment remains available. Keep dataset ID identical across all notebooks and run ID identical in 03/04. Change dataset ID for changed source values; change run ID for changed settings/code. Conflicting saved outputs are rejected rather than overwritten.
 
-1. **Preparation:** freezes the complete configured feature list and exact snapshot
-   matrix. Preserves fractional values and missingness; blocks duplicate/missing
-   keys, label conflicts, prohibited metadata predictors, missing columns and infinities.
-2. **Split/preprocessing:** verifies unchanged patient assignments and fits median
-   imputation and standardization on TRAIN only. All-missing TRAIN columns remain
-   in the vocabulary with zero imputation. Missingness is encoded per selected value.
-3. **Training:** compares four feature-token Transformers (baseline, dropout,
-   weight decay, smaller architecture), logistic regression and sklearn histogram
-   gradient boosting. All use the same selected source features. The tree model
-   is a comparator, not an exact reimplementation of Brian's LightGBM.
-4. **Evaluation:** scores the frozen validation-selected winner on TRAIN, VALIDATION
-   and TEST, using its saved preprocessing and validation-selected F1 threshold.
+## Overfitting discussion
 
-The Transformer has one token per selected feature plus a classification token.
-It does not repeat static summaries across twelve pretend months. Each feature
-token encodes its numeric value, identity and whether its source value was missing.
-The tabular comparators receive the same values and missingness flags.
+- Training lift is in-sample. Select checkpoints by validation top-10% lift, then validation AP, then earliest epoch. Threshold uses validation F1. TEST never selects either.
+- Examine training/validation loss and lift together. Growing training lift with stalled validation lift indicates a generalization gap. Lower training lift than a reference may also reflect representation or fit.
+- Earlier screenshots show top-10% lift **3.782 TRAIN, 2.963 VALIDATION, 3.608 TEST**. These are the earlier observed results; Codex has not run the revised notebooks on private data.
+- Before comparing against Brian's reported lift of 6, confirm its split, population, dates, outcome and targeting fraction. Lift here is selected response rate divided by that split's response rate. Decile 10 contains highest scores; ties use patient/date order.
 
-## Lift objective and training-set reporting
+Existing TEST results have already been inspected. Brian's feature-selection population and historical feature availability have not been independently verified. Later untouched data is needed to confirm generalization. Fewer features do not guarantee lift 6 or eliminate overfitting.
 
-Primary checkpoint/model selection is **VALIDATION top-10% lift**; ties use
-VALIDATION average precision, then earliest checkpoint / declared recipe order.
-Training lift is reported every Transformer epoch and in each candidate's full
-decile table. It is an in-sample diagnostic and never chooses the winner.
-
-The final notebook provides:
-
-- TRAIN/VALIDATION/TEST AP, ROC AUC, precision, recall, F1 and confusion counts;
-- full decile lift, response rates, cumulative recall and cumulative lift;
-- top-5%, 10%, 20% and 30% precision, recall and lift;
-- training/validation loss and lift curves in notebook 03;
-- lift/recall, precision-recall and TEST confusion charts in notebook 04;
-- saved exact-key predictions, feature manifest, preprocessing, model, histories,
-  metrics and plots within the private warehouse artifact tables.
-
-Decile 10 means highest scores. Lift uses each split's own outcome prevalence.
-Top-K uses ceiling rounding and deterministic patient/date tie-breaking. Metrics
-count snapshots, including repeated snapshots of a patient within a split.
-Prediction cutoffs/labels/splits stay fixed, but the feature representation and
-Transformer architecture change compared with the original temporal model.
-
-## Interpretation
-
-The goal is increased lift; improvement is not guaranteed. Select from validation
-and report TEST only for the frozen winner. Existing TEST results have already
-been inspected. The client's feature-selection population is not established,
-so this is a retrospective feature comparison, not untouched validation of feature
-discovery. Confirm any improvement on a later, untouched cohort.
-
-Using a matching END_DT does not itself prove that every feature was available
-historically. Existing RESP is retained; its detailed 90-day construction and
-the feature availability rules have not been independently verified.
-
-Saved model files use joblib serialization. Load only artifacts generated by these
-notebooks in the controlled experiment tables, with matching provenance/checksums;
-never substitute an external model file.
+Predictions remain in the private warehouse. Load only this pipeline's own verified model artifacts; joblib files must be trusted.

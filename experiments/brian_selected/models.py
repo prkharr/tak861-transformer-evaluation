@@ -9,25 +9,15 @@ import joblib
 import numpy as np
 import torch
 from torch import nn
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.metrics import average_precision_score
 import sklearn
 
 
 def default_recipes():
-    base = {"width": 64, "heads": 4, "layers": 2, "feedforward": 128,
-            "dropout": .20, "weight_decay": .0001, "learning_rate": .0005, "batch_size": 128}
-    return [
-        {"name": "transformer_baseline", "kind": "transformer", "settings": dict(base)},
-        {"name": "transformer_dropout", "kind": "transformer", "settings": dict(base, dropout=.35)},
-        {"name": "transformer_decay", "kind": "transformer", "settings": dict(base, weight_decay=.001)},
-        {"name": "transformer_small", "kind": "transformer", "settings": dict(base, width=32, layers=1, feedforward=64)},
-        {"name": "logistic", "kind": "logistic", "settings": {"C": .1, "max_iter": 2000}},
-        {"name": "hist_gradient_boosting", "kind": "hist_gradient_boosting",
-         "settings": {"max_iter": 200, "learning_rate": .05, "max_leaf_nodes": 15,
-                      "min_samples_leaf": 40, "l2_regularization": 1.0}},
-    ]
+    """One predeclared Transformer; no model-family or architecture search."""
+    return [{"name": "transformer_dropout", "kind": "transformer", "settings": {
+        "width": 64, "heads": 4, "layers": 2, "feedforward": 128,
+        "dropout": .35, "weight_decay": .0001, "learning_rate": .0005, "batch_size": 128}}]
 
 
 def seed_selected(seed):
@@ -113,73 +103,53 @@ def fit_candidate(recipe, X_train, missing_train, y_train, X_val, missing_val, y
               "runtime": {"python": platform.python_version(), "numpy": np.__version__,
                           "sklearn": sklearn.__version__, "torch": str(torch.__version__)}}
     settings = recipe["settings"]
-    if recipe["kind"] == "transformer":
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        result["runtime"]["device"] = str(device)
-        network = FeatureTokenTransformer(X_train.shape[1], settings).to(device)
-        optimizer = torch.optim.AdamW(network.parameters(), lr=settings["learning_rate"], weight_decay=settings["weight_decay"])
-        loss_function = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(positive_weight, device=device))
-        dataset = torch.utils.data.TensorDataset(torch.tensor(X_train, dtype=torch.float32),
-                       torch.tensor(missing_train, dtype=torch.float32), torch.tensor(y_train, dtype=torch.float32))
-        loader = torch.utils.data.DataLoader(dataset, batch_size=settings["batch_size"], shuffle=True,
-                       num_workers=0, generator=torch.Generator().manual_seed(seed))
-        best_key, best_state, stale = (-np.inf, -np.inf), None, 0
-        for epoch in range(1, max_epochs+1):
-            network.train()
-            loss_sum = 0.0
-            for values, mask, labels in loader:
-                values, mask, labels = values.to(device), mask.to(device), labels.to(device)
-                optimizer.zero_grad(set_to_none=True)
-                loss = loss_function(network(values, mask), labels)
-                if not torch.isfinite(loss):
-                    raise ValueError("Training loss became nonfinite.")
-                loss.backward()
-                nn.utils.clip_grad_norm_(network.parameters(), 1.0)
-                optimizer.step()
-                loss_sum += float(loss.detach().cpu()) * len(labels)
-            train_scores = network_scores(network, X_train, missing_train, device)
-            val_scores = network_scores(network, X_val, missing_val, device)
-            train_key, val_key = selection_key(y_train, train_scores), selection_key(y_val, val_scores)
-            result["history"].append({"epoch": epoch, "train_batch_loss": loss_sum/len(y_train),
-                 "train_loss": weighted_probability_loss(y_train, train_scores, positive_weight),
-                 "validation_loss": weighted_probability_loss(y_val, val_scores, positive_weight),
-                 "train_top10_lift": train_key[0], "train_ap": train_key[1],
-                 "validation_top10_lift": val_key[0], "validation_ap": val_key[1]})
-            print(f"{recipe['name']} epoch {epoch}: TRAIN lift={train_key[0]:.3f}; VALIDATION lift={val_key[0]:.3f}, AP={val_key[1]:.4f}", flush=True)
-            if val_key > best_key:
-                best_key = val_key
-                best_state = {k: v.detach().cpu().clone() for k, v in network.state_dict().items()}
-                result["best_epoch"] = epoch
-                stale = 0
-            else:
-                stale += 1
-                if stale >= patience:
-                    break
-        result["state_dict"] = best_state
-        del network, optimizer
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-    else:
-        # Missing flags describe selected values; they are not additional warehouse feature sources.
-        train_matrix = np.concatenate([X_train, missing_train], axis=1)
-        if recipe["kind"] == "logistic":
-            estimator = LogisticRegression(**settings, class_weight="balanced", random_state=seed)
-            estimator.fit(train_matrix, y_train)
-        elif recipe["kind"] == "hist_gradient_boosting":
-            estimator = HistGradientBoostingClassifier(**settings, early_stopping=False, random_state=seed)
-            estimator.fit(train_matrix, y_train, sample_weight=np.where(y_train == 1, positive_weight, 1.0))
-        else:
-            raise ValueError("Unknown model family.")
-        result["estimator"] = estimator
-        result["best_epoch"] = None
-        train_scores = estimator.predict_proba(train_matrix)[:, 1]
-        val_scores = estimator.predict_proba(np.concatenate([X_val, missing_val], axis=1))[:, 1]
+    if recipe["kind"] != "transformer":
+        raise ValueError("Only the Transformer is supported.")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    result["runtime"]["device"] = str(device)
+    network = FeatureTokenTransformer(X_train.shape[1], settings).to(device)
+    optimizer = torch.optim.AdamW(network.parameters(), lr=settings["learning_rate"], weight_decay=settings["weight_decay"])
+    loss_function = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(positive_weight, device=device))
+    dataset = torch.utils.data.TensorDataset(torch.tensor(X_train, dtype=torch.float32),
+                   torch.tensor(missing_train, dtype=torch.float32), torch.tensor(y_train, dtype=torch.float32))
+    loader = torch.utils.data.DataLoader(dataset, batch_size=settings["batch_size"], shuffle=True,
+                   num_workers=0, generator=torch.Generator().manual_seed(seed))
+    best_key, best_state, stale = (-np.inf, -np.inf), None, 0
+    for epoch in range(1, max_epochs+1):
+        network.train()
+        loss_sum = 0.0
+        for values, mask, labels in loader:
+            values, mask, labels = values.to(device), mask.to(device), labels.to(device)
+            optimizer.zero_grad(set_to_none=True)
+            loss = loss_function(network(values, mask), labels)
+            if not torch.isfinite(loss):
+                raise ValueError("Training loss became nonfinite.")
+            loss.backward()
+            nn.utils.clip_grad_norm_(network.parameters(), 1.0)
+            optimizer.step()
+            loss_sum += float(loss.detach().cpu()) * len(labels)
+        train_scores = network_scores(network, X_train, missing_train, device)
+        val_scores = network_scores(network, X_val, missing_val, device)
         train_key, val_key = selection_key(y_train, train_scores), selection_key(y_val, val_scores)
-        result["history"] = [{"epoch": 0, "train_loss": weighted_probability_loss(y_train, train_scores, positive_weight),
+        result["history"].append({"epoch": epoch, "train_batch_loss": loss_sum/len(y_train),
+             "train_loss": weighted_probability_loss(y_train, train_scores, positive_weight),
              "validation_loss": weighted_probability_loss(y_val, val_scores, positive_weight),
              "train_top10_lift": train_key[0], "train_ap": train_key[1],
-             "validation_top10_lift": val_key[0], "validation_ap": val_key[1]}]
-        print(f"{recipe['name']}: TRAIN lift={train_key[0]:.3f}; VALIDATION lift={val_key[0]:.3f}, AP={val_key[1]:.4f}", flush=True)
+             "validation_top10_lift": val_key[0], "validation_ap": val_key[1]})
+        print(f"{recipe['name']} epoch {epoch}: TRAIN lift={train_key[0]:.3f}; VALIDATION lift={val_key[0]:.3f}, AP={val_key[1]:.4f}", flush=True)
+        if val_key > best_key:
+            best_key = val_key
+            best_state = {k: v.detach().cpu().clone() for k, v in network.state_dict().items()}
+            result["best_epoch"] = epoch
+            stale = 0
+        else:
+            stale += 1
+            if stale >= patience:
+                break
+    result["state_dict"] = best_state
+    del network, optimizer
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
     result["seconds"] = time.time()-started
     return result
 
@@ -196,7 +166,7 @@ def predict_candidate(result, X, missing):
         p = network_scores(network, X, missing, device)
         del network
     else:
-        p = result["estimator"].predict_proba(np.concatenate([X, missing], axis=1))[:, 1]
+        raise ValueError("Only the Transformer is supported.")
     if not np.isfinite(p).all() or ((p < 0) | (p > 1)).any():
         raise ValueError("Invalid predicted probabilities.")
     return p

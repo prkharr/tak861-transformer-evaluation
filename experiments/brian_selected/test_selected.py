@@ -96,7 +96,7 @@ def test_lift_and_ties_are_outcome_independent():
     assert models.selection_key(meta.RESP.to_numpy(), scores)[0] == pytest.approx(expected)
 
 
-@pytest.mark.parametrize("kind", ["transformer", "logistic", "hist_gradient_boosting"])
+@pytest.mark.parametrize("kind", ["transformer"])
 def test_fit_predict_roundtrip(kind):
     rng = np.random.default_rng(5)
     X = rng.normal(size=(80, 5)).astype(np.float32)
@@ -105,8 +105,6 @@ def test_fit_predict_roundtrip(kind):
     recipe = next(r for r in models.default_recipes() if r["kind"] == kind)
     if kind == "transformer":
         recipe["settings"].update(width=8, heads=2, layers=1, feedforward=16, batch_size=16)
-    if kind == "hist_gradient_boosting":
-        recipe["settings"].update(max_iter=4, min_samples_leaf=5)
     result = models.fit_candidate(recipe, X[:60], missing[:60], y[:60], X[60:], missing[60:], y[60:], max_epochs=2, patience=1)
     scores = models.predict_candidate(result, X[60:], missing[60:])
     loaded = models.load_candidate(models.dump_candidate(result))
@@ -207,8 +205,6 @@ def test_all_four_notebooks_in_fresh_sessions_with_synthetic_warehouse(monkeypat
         for recipe in recipes:
             if recipe["kind"] == "transformer":
                 recipe["settings"].update(width=8, heads=2, layers=1, feedforward=16, batch_size=1024)
-            elif recipe["kind"] == "hist_gradient_boosting":
-                recipe["settings"].update(max_iter=4)
         return recipes
 
     for cells in (builder.preparation, builder.splitting, builder.training, builder.evaluation):
@@ -229,4 +225,12 @@ def test_all_four_notebooks_in_fresh_sessions_with_synthetic_warehouse(monkeypat
     selection = json.loads(artifacts[scope["SELECTION_TABLE"]]["selection.json"])
     assert selection["test_used_for_selection"] is False
     candidates = [name for name in artifacts if name.startswith(scope["RUN_PREFIX"] + "_MODEL_")]
-    assert len(candidates) == 6
+    assert len(candidates) == 1
+
+
+def test_single_transformer_configuration():
+    recipes = models.default_recipes()
+    assert len(recipes) == 1
+    assert recipes[0]["kind"] == "transformer"
+    assert recipes[0]["settings"]["dropout"] == .35
+    assert 'for recipe in recipes:' not in '\n'.join(builder.training)
