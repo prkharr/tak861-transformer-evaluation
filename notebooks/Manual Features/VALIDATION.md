@@ -34,9 +34,9 @@ helper files are required by the delivered notebooks.
 - User-supplied screenshots show earlier real-data top-10% lift of 3.782 TRAIN,
   2.963 VALIDATION and 3.608 TEST for the retained Transformer configuration.
   The simplified delivery has not been rerun on private data. Exact reproduction
-  of Brian's model, historical availability and label correctness are not established.
+  of The reference model's model, historical availability and label correctness are not established.
 - Matplotlib's bundled pyparsing dependencies emitted deprecation warnings during
   plotting tests; these did not prevent chart generation or test completion.
 
-The original 1,028-feature notebooks and prior Brian V2 artifacts were not replaced.
+The original 1,028-feature notebooks and prior experiment artifacts were not replaced.
 This delivery uses its own selected-feature directory and warehouse namespace.

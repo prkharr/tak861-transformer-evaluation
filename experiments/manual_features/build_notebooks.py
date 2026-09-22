@@ -9,8 +9,8 @@ from textwrap import dedent
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 WORKSPACE = REPO.parent
-OUT = WORKSPACE / "outputs" / "Brian_Selected_Features"
-MIRROR = REPO / "notebooks" / "Brian Selected Features"
+OUT = WORKSPACE / "outputs" / "Manual_Features"
+MIRROR = REPO / "notebooks" / "Manual Features"
 
 
 def read(path):
@@ -340,7 +340,7 @@ evaluation = [
                   "training_lift_is_in_sample": True,
                   "selection_rule": selection["contract"]["settings"]["selection"],
                   "limitations": ["Existing TEST was already inspected in earlier work.",
-                    "Selected feature list comes from the client model; its original selection population is unverified.",
+                    "Selected feature list comes from the reference model; its original selection population is unverified.",
                     "Historical availability of source features and 90-day label construction are not independently verified.",
                     "Snapshot metrics include correlated snapshots within each patient.",
                     "A later untouched cohort is needed for independent confirmation of an improvement."]}
@@ -379,10 +379,10 @@ evaluation = [
 def build():
     OUT.mkdir(parents=True, exist_ok=True)
     MIRROR.mkdir(parents=True, exist_ok=True)
-    specs = [("01_selected_feature_preparation.ipynb", preparation),
-             ("02_preserve_split_and_preprocess.ipynb", splitting),
-             ("03_selected_feature_training.ipynb", training),
-             ("04_selected_feature_lift_evaluation.ipynb", evaluation)]
+    specs = [("01_tensor_initialization.ipynb", preparation),
+             ("02_patient_level_split.ipynb", splitting),
+             ("03_transformer_training.ipynb", training),
+             ("04_transformer_evaluation.ipynb", evaluation)]
     for name, cells in specs:
         assert len(cells) == 8
         for i, source in enumerate(cells):
@@ -400,7 +400,7 @@ def build():
         if source.exists():
             shutil.copy2(source, OUT / filename)
             shutil.copy2(source, MIRROR / filename)
-    archive = OUT.parent / "Brian_Selected_Features_4_Notebooks.zip"
+    archive = OUT.parent / "Manual_Features_4_Notebooks.zip"
     with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as z:
         for path in sorted(OUT.iterdir()):
             if path.suffix in {".ipynb", ".md"}:

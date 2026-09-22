@@ -68,7 +68,7 @@ def prepared_artifacts(metadata, X, features, comparison):
                 "representation": "One snapshot row; one numeric value per selected feature. No monthly replication.",
                 "historical_feature_availability_verified": False,
                 "target": "Existing RESP retained; business objective is 90-day AT escalation; source label construction not independently verified.",
-                "evaluation_scope": "Retrospective comparison. Brian's preselected list may have used patients in the current holdout; existing TEST has been inspected."}
+                "evaluation_scope": "Retrospective comparison. The reference model's preselected list may have used patients in the current holdout; existing TEST has been inspected."}
     return {"raw_features.npz": npz_bytes(X=X), "snapshots.csv": metadata.to_csv(index=False).encode(),
             "manifest.json": json_bytes(manifest)}
 
