@@ -1,5 +1,7 @@
 # TAK861 / NT1 Transformer: split, train and evaluate
 
+The latest four-notebook snapshot-padding rebuild is in [notebooks/V63 Snapshot Padding](notebooks/V63%20Snapshot%20Padding/START_HERE.md). It uses all 49 already-encoded V63 snapshot features, enrollment-based validity, shared TRAIN-only preprocessing, explicit L1/L2 regularization, feature analysis, architecture diagrams and validation-only overfitting experiments. Start with that folder for the September 27, 2026 delivery. Its monthly and quarterly inputs repeat snapshot values; they do not reconstruct historical features. The instructions below describe the earlier Transformer Encoder route.
+
 Continue from the existing completed `tensor_complete` monthly table on the work laptop. Run the three notebooks under **`notebooks/Transformer Encoder/`** to preserve snapshot identity, freeze the patient split, train a compact Transformer and evaluate it on held-out TEST snapshots. LightGBM remains deferred.
 
 The [shared project reference](https://chatgpt.com/share/6aacb1e6-dad0-83ee-9fce-3a370814f508) describes the completed Spark monthly table and a proposed model. It does not confirm an aligned NumPy tensor, saved checkpoint or completed model training. The upstream `tensor_initialization.ipynb` was not available for inspection here and is neither recreated nor included. No real project model is trained or evaluated on this machine; actual data and results remain on the work laptop.
