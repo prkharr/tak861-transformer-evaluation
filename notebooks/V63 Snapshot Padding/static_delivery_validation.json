@@ -1,0 +1,70 @@
+{
+  "nbformat_and_ast": "PASS",
+  "cleared_outputs": "PASS",
+  "embedded_sources_equal_current_files": "PASS",
+  "code_cells": {
+    "01_tensor_initialization.ipynb": 5,
+    "02_patient_level_split.ipynb": 6,
+    "03_transformer_training.ipynb": 7,
+    "04_transformer_evaluation.ipynb": 7,
+    "05_model_comparison.ipynb": 7
+  },
+  "implementation_sha256": "48f7a1e0b10113320b4be9cd3a52039aec5888ba52c2c6d54a479373b56641a3",
+  "original_archive_content_identity": "PASS: CRLF/LF normalization only",
+  "archive_files": [
+    {
+      "name": "01_tensor_initialization.ipynb",
+      "git_content_equivalent_after_line_endings": true,
+      "byte_identical_to_git": false
+    },
+    {
+      "name": "02_patient_level_split.ipynb",
+      "git_content_equivalent_after_line_endings": true,
+      "byte_identical_to_git": false
+    },
+    {
+      "name": "03_transformer_training.ipynb",
+      "git_content_equivalent_after_line_endings": true,
+      "byte_identical_to_git": false
+    },
+    {
+      "name": "04_transformer_evaluation.ipynb",
+      "git_content_equivalent_after_line_endings": true,
+      "byte_identical_to_git": false
+    },
+    {
+      "name": "START_HERE.md",
+      "git_content_equivalent_after_line_endings": true,
+      "byte_identical_to_git": true
+    },
+    {
+      "name": "VALIDATION.md",
+      "git_content_equivalent_after_line_endings": true,
+      "byte_identical_to_git": true
+    }
+  ],
+  "versions": {
+    "python": "3.12.14",
+    "numpy": "2.5.3",
+    "pandas": "3.0.1",
+    "scikit-learn": "1.9.1",
+    "torch": "2.8.0+cpu",
+    "lightgbm": "4.6.0",
+    "scipy": "1.18.1"
+  },
+  "synthetic_tests": {
+    "command": "python -B -m pytest experiments/rigorous_transformer -q",
+    "tests_passed": 107,
+    "subtests_passed": 70,
+    "seconds": 16.49,
+    "exit_code": 0,
+    "implementation_sha256": "48f7a1e0b10113320b4be9cd3a52039aec5888ba52c2c6d54a479373b56641a3",
+    "scope": "Synthetic unit and full five-notebook execution; no private model results"
+  },
+  "claude_review_artifact_sha256": {
+    "CLAUDE_DESIGN_REVIEW_20261006.md": "fab9b8da6de480648f9a2b7c976cc4b6d662da7d42d1b8d6abd1f3daa81f411e",
+    "CLAUDE_RELIANCE_REVIEW_20261006.md": "b3693eeab6ffbd2debd0d0bf98ca269cd2f547796f958533d4383e0863cb185f"
+  },
+  "final_claude_reverification": "Not submitted: Windows activation/GetCursorPos access denied; no final Claude approval claimed",
+  "production_executed": false
+}
