@@ -1,0 +1,33 @@
+{
+  "implementation_sha256": "84eda866d3bddef302b8a4b4526811cdfaacf32fb9b56bf76f8e61781c9cbd15",
+  "source_sha256": "2a8fcf002b6db7be56bd76ddfac71c23d1c1b9cb939cb05273629fa9956bee6f",
+  "notebooks": [
+    {
+      "path": "notebooks\\V63 Snapshot Padding\\01_tensor_initialization.ipynb",
+      "sha256": "7c038aa26a52214feb51b1b9f13bf785bf6950a14535eeb151eaeca5ea6ae927",
+      "cells": 9
+    },
+    {
+      "path": "notebooks\\V63 Snapshot Padding\\02_patient_level_split.ipynb",
+      "sha256": "bca037cded7814a3c3755f68ae3c5b8c4af57aadba09906a01f70fe2af0efcfa",
+      "cells": 7
+    },
+    {
+      "path": "notebooks\\V63 Snapshot Padding\\03_transformer_training.ipynb",
+      "sha256": "2b76fc9cea1a5402bcddac7f3df6418b511165f92b2164e088543afec68195b8",
+      "cells": 5
+    },
+    {
+      "path": "notebooks\\V63 Snapshot Padding\\04_transformer_evaluation.ipynb",
+      "sha256": "a1be8874e6e1373c10f110b56ea3d78834b79946a1bff05dd545c9812793dd17",
+      "cells": 8
+    },
+    {
+      "path": "notebooks\\V63 Snapshot Padding\\05_model_comparison.ipynb",
+      "sha256": "4bc23ebba045ae2a078abed39cb9866813ab12408837b0a589b42a82b875f409",
+      "cells": 7
+    }
+  ],
+  "generated_from": "experiments/automl_sequence/build_notebooks.py",
+  "clinical_execution": false
+}

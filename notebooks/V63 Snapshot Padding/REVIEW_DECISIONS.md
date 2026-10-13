@@ -1,3 +1,13 @@
+# Current revision: October 13 raw AutoML experiments
+
+R20261013C includes the raw historical AutoML extractor and all five notebooks. All 58 local checks passed in 46.334 seconds, including synthetic execution of all five notebook cell sequences. Generated SQL passed a Snowflake syntax parse. These checks do not establish live source permissions, warehouse execution or clinical results. The user authorized the Git push and explicitly deferred Claude review; no fresh Claude approval is claimed.
+
+Run 01ñ05 in order using the existing private Spark/Snowflake connection. COUNT, STATIC_FUSION and TEMPORAL_FUSION use a common cohort and lift-based comparison. [Run guide](../../experiments/automl_sequence/README.md), [exact build](../../experiments/automl_sequence/build_manifest.json), [validation receipt](../../experiments/automl_sequence/local_validation.json), and [historical addendum findings](../../experiments/automl_sequence/HISTORICAL_ADDENDUM_FINDINGS.md). No new clinical performance result is available.
+
+The record below applies to the October 6 implementation; its instructions, results and review do not apply to the current notebook bytes.
+
+---
+
 # Reviewer decisions and evidence boundaries
 
 Date: 2026-10-06. Reviewer: actual Claude in the existing TAK861 deep-learning project review conversation, followed by independent Codex implementation review.
@@ -47,7 +57,7 @@ Two substantive recommendations were accepted before publication:
 1. Replace proxy-subset-only ablations with a registered two-phase search. Each model family selects its phase-A count anchor using all prescribed seeds, records its identity and evidence, then runs phase-B ablations on that feature set. Count anchors are recomputed and verified on resume; no discretionary post-hoc anchor change is allowed.
 2. Add the keyed ranking-to-model audit and post-lock validation permutation diagnostics. The audit covers full original vocabulary, each seed, ordered identities, scale-aware internal measures, matching count-LightGBM gain, individual probes, source families, TRAIN-rank terciles and TRAIN-correlation groups. It preserves locked decisions and exposes unmeasured individual reliance.
 
-Claude's proposal to run every individual feature in ‚Äúa few minutes‚Äù was not accepted as a runtime fact: no production benchmark supports that estimate. Its permitted bounded union is registered instead, with explicit omission coverage. Latest-patient, within-month permutation is used as a secondary diagnostic; naive repeated-snapshot shuffling is not presented as patient-independent inference. Leave-group-out refits after the final lock were deferred because they add experiments and could reopen selection. All-source-family group effects measure fixed-model reliance, not proof that a group adds information to retraining. Eight CPU threads remain a declared resource choice; sixteen is not assumed faster without a benchmark.
+Claude's proposal to run every individual feature in ìa few minutesî was not accepted as a runtime fact: no production benchmark supports that estimate. Its permitted bounded union is registered instead, with explicit omission coverage. Latest-patient, within-month permutation is used as a secondary diagnostic; naive repeated-snapshot shuffling is not presented as patient-independent inference. Leave-group-out refits after the final lock were deferred because they add experiments and could reopen selection. All-source-family group effects measure fixed-model reliance, not proof that a group adds information to retraining. Eight CPU threads remain a declared resource choice; sixteen is not assumed faster without a benchmark.
 
 ## Review completion
 
