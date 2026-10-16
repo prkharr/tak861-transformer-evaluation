@@ -22,7 +22,7 @@ def code(text):
 
 def build():
     sources = {n: (HERE / (n + ".py")).read_text(encoding="utf-8-sig")
-               for n in ("inputs", "count_loader", "modeling", "workflow", "reliance", "source_recovery", "raw_automl")}
+               for n in ("inputs", "count_loader", "modeling", "workflow", "reliance", "source_recovery", "raw_automl", "fresh_counts", "client_universe")}
     sources["comparison"] = (REPO / "experiments/rigorous_transformer/comparison.py").read_text(encoding="utf-8-sig")
     sources["warehouse"] = (REPO / "experiments/temporal_selection/input_helpers.py").read_text(encoding="utf-8-sig")
     source_hash = hashlib.sha256(json.dumps(sources, sort_keys=True).encode()).hexdigest()
@@ -30,10 +30,11 @@ def build():
     config = code('''
     import os
     os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
-    RUN_ID = "R20261013C"  # Raw AutoML extraction bound. Same in all five; new ID after any change.
+    RUN_ID = "R20261016A"  # Brian's revised universe; never reuse the old-cohort run identity.
     SOURCE_PREFIX = "TAK861_TX_READY_V63_DL_POC"
-    SOURCE_VERSION = "frozen_saved_count_inputs_content_verified_at_load"
     CONFIG = {
+        "client_universe": {"table": None, "split_seed": 42, "max_missing_feature_fraction": .10,
+                            "sources": {}, "common_scope": None, "family_column": None},
         "date_policy": "month_end_history", "seeds": [42, 142, 242],
         "require_count_reference": True, "include_automl_only_controls": False,
         "include_lightgbm": False, "primary_lift_fraction": .10,
@@ -74,6 +75,8 @@ def build():
     rel = modules["reliance"]
     recovery = modules["source_recovery"]
     raw = modules["raw_automl"]
+    client = modules["client_universe"]
+    client.inputs, client.fresh_counts, client.count_loader = inp, modules["fresh_counts"], cl
     raw.inputs = inp
     wf.inputs, wf.modeling, wf.comparison, cl.inputs = inp, mdl, cmp, inp
     wh.spark, wh.sf_options_dl_poc, wh.PREFIX = spark, sf_options_dl_poc, SOURCE_PREFIX
@@ -116,7 +119,7 @@ def build():
         This is a revised raw feature definition, not a numerical reproduction of the old
         261-column table. Names use an explicit deterministic sanitizer; the original
         unspecified regexp_comb UDF and ICD-10-PCS positional enrichment are not used.
-        At most 512 categories enter the bounded run, selected by distinct TRAIN-patient
+        At most 512 feature columns (count/recent measures plus AGE) enter the bounded run, selected by distinct TRAIN-patient
         frequency without labels; the complete candidate/exclusion ledger is retained.
         Learned feature selection and preprocessing remain inside TRAIN as described in 02.
         `feature_specs` is an ordered list of `{name, kind, definition}`; kinds are count, binary,
@@ -137,15 +140,19 @@ def build():
         Current latest source/reference tables cannot establish historical ingestion-time
         availability. Report results as retrospective event-date-bounded comparisons.
         '''), code('''
-        # Optional explicit source override for a separately documented extraction/cache.
-        # The default is the included raw historical extractor; no source code is missing.
-        AUTOML_SETUP = globals().get("AUTOML_SETUP")
+        # New cohort must refit its raw vocabulary; ignore stale interactive setup objects.
+        AUTOML_SETUP = None
         REUSE_SAVED_INPUTS = wh.table_exists(RUN_PREFIX+"_INPUTS")
         '''), md('''
         ## Reuse and alignment
-        Read only the raw count FEATURE_MAP, SNAPSHOTS, PATIENT_SPLIT and TENSOR_MONTHLY tables.
-        Preserve all 1,028 candidates and all saved splits. No earlier checkpoint, metric or
-        training-history table is a runtime dependency. Count time step zero is the partial
+        Resolve Brian's TAK861_TX_READY_PATIENT_UNIVERSE_DL using exact-name metadata;
+        set CONFIG['client_universe']['table'] only if multiple visible schemas require disambiguation.
+        Read the old FEATURE_MAP and PATIENT_SPLIT for dictionary and patient membership only.
+        Rebuild all counts from raw claims for the new universe; do not read old SNAPSHOTS or TENSOR_MONTHLY.
+        Preserve all 1,028 candidates and known patient partitions; assign new patients by a seeded hash.
+        Audit added/removed snapshots and positive snapshots/patients; do not assume the reported 2.5x ratio.
+        A changed RESP on a shared key stops execution for producer-rule review.
+        No earlier checkpoint, metric or training-history table is a runtime dependency. Count time step zero is the partial
         current month through END_DT; older steps are complete calendar months. AutoML as-of
         anchors therefore use END_DT followed by prior month-ends. AutoML rolling lookbacks
         can overlap; they are not described as disjoint monthly event counts.
@@ -161,8 +168,11 @@ def build():
             data = load_stage()
             print("Verified and reused this run's frozen tensors; no source extraction repeated.")
         else:
-            counts = cl.load_count_inputs(wh.read_sf, SOURCE_PREFIX, SOURCE_VERSION)
+            counts = client.load_client_counts(spark, read_query, wh.read_sf, CONFIG["client_universe"])
             metadata = wf.assign_patient_split(counts["metadata"])
+            aggregate(pd.DataFrame([counts["contract"]["client_universe_audit"]]))
+            aggregate(pd.DataFrame(counts["contract"]["client_universe_audit"]["population_by_split"]))
+            aggregate(pd.DataFrame(counts["contract"]["client_universe_audit"]["snapshot_changes_by_split"]))
             requests, date_grid = inp.make_requests(metadata, date_policy=CONFIG["date_policy"])
             aggregate(metadata.groupby("SPLIT").agg(snapshots=("RESP", "size"),
                 patients=("PATIENT_ID", "nunique"), positives=("RESP", "sum")).reset_index())
@@ -189,6 +199,7 @@ def build():
                 panel_manifest["raw_extraction_receipt"] = AUTOML_SETUP["receipt"]
             data = inp.assemble_inputs(metadata, panel, feature_specs, date_policy=CONFIG["date_policy"])
             data = wf.attach_count_reference(data, counts["X"], counts["metadata"], counts["contract"], valid=counts["valid"])
+            data["report"]["source_activity_alignment"] = client.check_activity_alignment(data)
             data["manifest"] = wf.save_inputs(RUN_PREFIX, data, panel_manifest, CONFIG, IMPLEMENTATION_SHA256)
             aggregate(pd.DataFrame([data["report"], panel_manifest["extraction_report"]]))
             cl.release_count_inputs(counts)
@@ -364,9 +375,12 @@ def build():
         Top 10% is the declared default primary capacity, with 20% and 30% secondary;
         do not choose the most favorable capacity after examining outcomes.
         Use paired patient-cluster bootstrap intervals, accounting for repeated snapshots.
+        Validation intervals are descriptive and selection-conditioned: the same validation
+        labels choose checkpoints. They are not unbiased held-out improvement estimates.
         They condition on the fitted predictors and do not include model-selection uncertainty.
-        The count cohort has already been evaluated twice on TEST. Any further TEST evaluation
-        here is a third retrospective evaluation, not an independent holdout or OOT result.
+        Legacy TEST patients were previously evaluated twice. This revised universe can add
+        snapshots or patients, so it has no directly comparable evaluation ordinal and is
+        not an untouched independent holdout or OOT result.
         Default to validation for today's development comparison. Freeze the complete protocol,
         models and thresholds before an explicitly requested final TEST pass; reruns read the
         identical persisted report. Do not change models after inspecting TEST outcomes.
@@ -420,6 +434,9 @@ def build():
         calibration, secondary AP/AUC, parameters and runtime. A higher lift means greater
         concentration of positives at the same capacity and in the same population.
         A confidence interval crossing zero is inconclusive, not equivalence or proof of no value.
+        This revised universe changes prevalence: compare arms within this run, not absolute
+        lift against the old universe's addendum. Validation intervals condition on
+        checkpoints selected using the same validation labels.
         An additive input gain does not establish a causal mechanism or a general interaction.
         Do not choose a new winner from TEST. LightGBM comparison is explicitly deferred in this
         bounded run; no claim that the Transformer beats LightGBM is supported by these arms.

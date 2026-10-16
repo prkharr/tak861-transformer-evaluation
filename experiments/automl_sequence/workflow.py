@@ -210,7 +210,7 @@ def attach_count_reference(data, values, metadata, contract, valid=None):
     if array_sha256(values) != contract["content_sha256"]:
         raise ValueError("Count cache content hash mismatch")
     for block in np.array_split(values, max(1, len(values) // 512)):
-        if np.isinf(block).any() or (block < 0).any():
+        if not np.isfinite(block).all() or (block < 0).any():
             raise ValueError("Invalid count values")
         finite = block[np.isfinite(block)]
         if (finite != np.floor(finite)).any():
@@ -301,8 +301,11 @@ def prepare_run(data, run_prefix, config, implementation_hash):
                     lift_population="patient_snapshots; not unique-patient interventions",
                     lift_tie_policy="score descending then frozen snapshot row order; exact ceil(fraction*N)",
                     selection_split="train_grouped_cv_and_validation", test_used_for_selection=False,
-                    top_fractions=sorted({.1, .2, .3, primary_fraction}), test_evaluation_ordinal=3,
-                    test_scope="retrospective; this cohort already evaluated twice",
+                    top_fractions=sorted({.1, .2, .3, primary_fraction}),
+                    test_evaluation_ordinal=None if 'client_universe' in config else 3,
+                    legacy_test_evaluations=2,
+                    test_scope=("Revised universe includes previously inspected TEST patients and possibly new patients; not an untouched holdout"
+                                if 'client_universe' in config else "retrospective; this cohort already evaluated twice"),
                     partial_seed_rule="all completed runs shown; incomplete protocol cannot be locked",
                     comparison_scope="matched count control versus static and historical AutoML augmentation; descriptive development evidence")
     save_artifacts(table, {"preparation.json": json_bytes(prep), "protocol.json": json_bytes(protocol)})
@@ -413,7 +416,8 @@ def make_lock(data, prep, protocol, results, run_prefix):
             metrics[name][split_name]["primary_lift_fraction"] = protocol["primary_lift_fraction"]
     lock = dict(protocol_hash=digest(protocol), preparation_hash=digest(prep),
                 input_manifest_hash=digest(data["manifest"]), models=models, metrics=metrics,
-                test_prediction_performed=False, test_scope=protocol["test_scope"],
+                test_prediction_performed=False, test_use_status_note="False at immutable lock creation; completed TEST use is recorded in FINAL_TEST report",
+                test_scope=protocol["test_scope"],
                 primary_metric=protocol["primary_metric"], primary_lift_fraction=protocol["primary_lift_fraction"],
                 threshold_note="Validation F1 threshold is secondary; primary lift uses the registered capacity, not this threshold")
     save_artifacts(run_prefix + "_LOCK", {"lock.json": json_bytes(lock)})
@@ -525,6 +529,7 @@ def compare_run(data, prep, protocol, results, lock, run_prefix, *, evaluate_tes
             primary_lift=lift_uncertainty["lift_by_fraction"][str(protocol["primary_lift_fraction"])],
             lift_by_fraction=lift_uncertainty["lift_by_fraction"], lift_bootstrap=lift_uncertainty)
     report = dict(lock_hash=digest(lock), split=split, metrics=metrics, comparisons=comparisons,
+                  test_prediction_performed=bool(evaluate_test),
                   bootstrap_resamples=n_bootstrap, execution_status="completed_on_configured_inputs",
                   primary_metric=protocol["primary_metric"], primary_lift_fraction=protocol["primary_lift_fraction"],
                   lift_population=protocol["lift_population"], lift_tie_policy=protocol["lift_tie_policy"],
@@ -532,6 +537,8 @@ def compare_run(data, prep, protocol, results, lock, run_prefix, *, evaluate_tes
                   test_evaluation_ordinal=protocol["test_evaluation_ordinal"] if evaluate_test else None,
                   limitations=["Validation is development evidence, not independent confirmation" if not evaluate_test else protocol["test_scope"],
                     "Bootstrap conditions on fitted predictions; excludes training/search uncertainty",
+                    "Validation intervals condition on validation-selected checkpoints and are optimistic development evidence",
+                    "Revised-universe prevalence differs; old absolute lift is not a like-for-like comparator",
                     "Unadjusted intervals across fixed contrasts; no multiplicity-controlled superiority claim",
                     "Augmentation changes input width/capacity as reported; no matched zero-input capacity ablation",
                     "Primary capacity was fixed before fitting; other capacity points are secondary, not selected from TEST",

@@ -90,6 +90,11 @@ class CountLoaderTest(unittest.TestCase):
         with patch.dict(sys.modules, self.modules), self.assertRaisesRegex(ValueError, "Invalid raw count"):
             count_loader.load_count_inputs(self.tables.__getitem__, "SYNTHETIC", "v1")
 
+    def test_null_count_fails_instead_of_silent_imputation(self):
+        self.rows[0]['SEQUENCE'][0]['V'][0] = float('nan')
+        with patch.dict(sys.modules, self.modules), self.assertRaisesRegex(ValueError, 'Invalid raw count'):
+            count_loader.load_count_inputs(self.tables.__getitem__, 'SYNTHETIC', 'v1')
+
 
 if __name__ == "__main__":
     unittest.main()

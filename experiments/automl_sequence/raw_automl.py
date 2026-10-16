@@ -84,7 +84,8 @@ def raw_sql_template(source_config=None):
     token("DX_BASE", "'VISIT_TYP_VST_'||VISIT_TYPE")
     token("DX_BASE", "'BILL_TYP_BILL_TYPE_CODE_'||BILL_TYPE_CODE")
     token("DX_BASE", "'PL_'||PLACE_OF_SERVICE")
-    token("DX_MAPPED", "'CHRONIC_DX'", condition="CHRONIC_INDICATOR IS NOT NULL")
+    # Legacy procedure counts any non-null indicator, not specifically Y.
+    token("DX_MAPPED", "'DX_WITH_CHRONIC_INDICATOR_RECORDED'", condition="CHRONIC_INDICATOR IS NOT NULL")
     token("PX_BASE", "'PROC_TYPE_'||PROCEDURE_CODE_TYPE")
     for level in range(1, 5):
         token("RX_MAPPED", "'RX_LEVEL_"+str(level)+"_'||LEVEL_"+str(level)+"_DESC", "CLAIM_KEY")
@@ -211,10 +212,10 @@ def _read_long(read_query, requests, template, chunk_size):
     frames = []
     for start in range(0, len(requests), chunk_size):
         batch = requests.iloc[start:start+chunk_size]
-        values = ["SELECT '"+patient.replace("'", "''")+"' AS PATIENT_ID,TO_DATE('"+
-                  date.strftime('%Y-%m-%d')+"') AS AS_OF_DATE"
+        values = ["('"+patient.replace("'", "''")+"','"+date.strftime('%Y-%m-%d')+"')"
                   for patient, date in batch.itertuples(index=False, name=None)]
-        frames.append(_frame(read_query(template.replace('{request_sql}', ' UNION ALL '.join(values)))))
+        request_sql = "SELECT column1::VARCHAR AS PATIENT_ID,TO_DATE(column2::VARCHAR) AS AS_OF_DATE FROM VALUES " + ','.join(values)
+        frames.append(_frame(read_query(template.replace('{request_sql}', request_sql))))
     if not frames:
         raise ValueError("No historical extraction keys")
     return pd.concat(frames, ignore_index=True)
@@ -298,7 +299,9 @@ def build_raw_automl_inputs(read_query, metadata, source_config=None):
     candidates.sort(key=lambda item: (-item['train_patients'], item['name']))
     # Reserve one slot for explicitly defined raw age when resource cap applies.
     limit = cfg['max_features']
-    selected = candidates if limit is None else candidates[:max(0,limit-1)]
+    categories = sorted(support, key=lambda category: (-support[category], category))
+    keep_categories = set(categories if limit is None else categories[:max(0,(limit-1)//2)])
+    selected = [item for item in candidates if item['raw_category'] in keep_categories]
     age = dict(name='AML_AGE_YEARS', kind='continuous', definition='Calendar as-of year minus birth year; conflicting/missing birth year remains missing',
                raw_category='AGE', measure='age', train_patients=int(len(train_patients)))
     specs = sorted(selected+[age], key=lambda item:item['name'])
@@ -356,7 +359,7 @@ def build_raw_automl_inputs(read_query, metadata, source_config=None):
         returned_long_rows=len(long),observed_window_keys=int(observed.sum()),unavailable_window_keys=int((~observed).sum()),
         age_conflict_keys=int(pd.to_numeric(coverage.AGE_CONFLICT,errors='raise').fillna(0).sum()),
         original_train_candidate_features=len(candidates)+1,retained_input_features=len(specs),
-        vocabulary_policy='label-blind distinct TRAIN patient frequency; stable name ties; AGE slot reserved',
+        vocabulary_policy='label-blind TRAIN patient frequency; category-name ties; keep count/recent pairs together; AGE slot reserved',
         vocabulary_max_features=limit,removed_feature_candidates=removed,
         removed_reason='predeclared input vocabulary resource cap, not outcome-based selection',
         all_candidate_specs=candidates+[age],elapsed_seconds=time.perf_counter()-started,

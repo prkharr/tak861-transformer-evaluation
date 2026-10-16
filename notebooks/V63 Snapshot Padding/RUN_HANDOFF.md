@@ -1,8 +1,23 @@
+# Current revision — October 16 client universe
+
+Run **R20261016A** using the five notebooks in this folder. Brian's
+TAK861_TX_READY_PATIENT_UNIVERSE_DL is resolved by exact metadata lookup;
+counts are rebuilt for its keys and actual historical AutoML features are
+assembled at 12 aligned dates. Read the [current guide](../../experiments/automl_sequence/README.md)
+and [client source contract](../../experiments/automl_sequence/CLIENT_UNIVERSE_20261016.md).
+See [validation](../../experiments/automl_sequence/local_validation.json) and
+[review](../../experiments/automl_sequence/CLAUDE_REVIEW_20261016.md).
+Actual private-data execution and results are pending. TEST remains off.
+
+Everything below is historical documentation, superseded for the current notebook bytes.
+
+---
+
 # Current revision: October 13 raw AutoML experiments
 
 R20261013C includes the raw historical AutoML extractor and all five notebooks. All 58 local checks passed in 46.334 seconds, including synthetic execution of all five notebook cell sequences. Generated SQL passed a Snowflake syntax parse. These checks do not establish live source permissions, warehouse execution or clinical results. The user authorized the Git push and explicitly deferred Claude review; no fresh Claude approval is claimed.
 
-Run 01�05 in order using the existing private Spark/Snowflake connection. COUNT, STATIC_FUSION and TEMPORAL_FUSION use a common cohort and lift-based comparison. [Run guide](../../experiments/automl_sequence/README.md), [exact build](../../experiments/automl_sequence/build_manifest.json), [validation receipt](../../experiments/automl_sequence/local_validation.json), and [historical addendum findings](../../experiments/automl_sequence/HISTORICAL_ADDENDUM_FINDINGS.md). No new clinical performance result is available.
+Run 01–05 in order using the existing private Spark/Snowflake connection. COUNT, STATIC_FUSION and TEMPORAL_FUSION use a common cohort and lift-based comparison. [Run guide](../../experiments/automl_sequence/README.md), [exact build](../../experiments/automl_sequence/build_manifest.json), [validation receipt](../../experiments/automl_sequence/local_validation.json), and [historical addendum findings](../../experiments/automl_sequence/HISTORICAL_ADDENDUM_FINDINGS.md). No new clinical performance result is available.
 
 The record below applies to the October 6 implementation; its instructions, results and review do not apply to the current notebook bytes.
 

@@ -99,7 +99,8 @@ def _kinds(feature_names, feature_kinds):
 
 def _fit_transform(summary, sequence, valid, feature_names, feature_kinds):
     """Fit one common transformation from TRAIN observations of both arms."""
-    values = np.concatenate([summary[:, 0, :], sequence[valid]], axis=0)
+    # Summary is the current sequence position; include each position once.
+    values = sequence[valid].copy()
     names, kinds = list(feature_names), _kinds(feature_names, feature_kinds)
     quality, medians, centers, scales, actual_kinds, eligible, binary_contracts = [], [], [], [], [], [], []
     seen = {}
@@ -148,7 +149,7 @@ def _fit_transform(summary, sequence, valid, feature_names, feature_kinds):
         raise ValueError("No nonconstant nonduplicate feature survives TRAIN quality checks")
     return dict(feature_names=names, kinds=actual_kinds, median=medians, center=centers,
                 scale=scales, eligible_indices=eligible, quality=quality, binary_contract=binary_contracts,
-                clipping="none", fitted_on="TRAIN summary and valid historical rows only",
+                clipping="none", fitted_on="TRAIN valid sequence positions once (summary is step zero)",
                 near_constant_policy="flag only; preserve rare clinical signals")
 
 

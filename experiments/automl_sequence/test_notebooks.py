@@ -77,10 +77,10 @@ class NotebookDeliveryTests(unittest.TestCase):
                            if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name)
                            and node.targets[0].id in {"EMBEDDED_SOURCES", "EMBEDDED_SOURCE_SHA256", "IMPLEMENTATION_SHA256"}}
             sources = assignments["EMBEDDED_SOURCES"]
-            self.assertEqual(set(sources), {"inputs", "count_loader", "modeling", "workflow", "reliance", "source_recovery", "raw_automl", "comparison", "warehouse"})
+            self.assertEqual(set(sources), {"inputs", "count_loader", "modeling", "workflow", "reliance", "source_recovery", "raw_automl", "fresh_counts", "client_universe", "comparison", "warehouse"})
             repo = BOOKS.parent.parent
             paths = {name: repo / "experiments" / "automl_sequence" / (name + ".py")
-                     for name in ("inputs", "count_loader", "modeling", "workflow", "reliance", "source_recovery", "raw_automl")}
+                     for name in ("inputs", "count_loader", "modeling", "workflow", "reliance", "source_recovery", "raw_automl", "fresh_counts", "client_universe")}
             paths.update(comparison=repo / "experiments" / "rigorous_transformer" / "comparison.py",
                          warehouse=repo / "experiments" / "temporal_selection" / "input_helpers.py")
             for name, path in paths.items():
@@ -113,7 +113,7 @@ class NotebookDeliveryTests(unittest.TestCase):
         fixture = fixture_module.WorkflowTest(methodName="test_three_arm_end_to_end_freeze_restore_and_test_gate")
         fixture.setUp()
         meta = fixture.data["metadata"].copy()
-        names = fixture.data["count_contract"]["feature_names"]
+        names = [('DX','PX','RX')[i%3] + '__COUNT_' + str(i) for i in range(1028)]
         aliases = [f"F{i:04d}" for i in range(1028)]
         creation = dict(n_timesteps=12, feature_order_sha256=hashlib.sha256(json.dumps(names).encode()).hexdigest())
         meta["SPLIT_CONFIG"] = json.dumps(creation)
@@ -122,7 +122,7 @@ class NotebookDeliveryTests(unittest.TestCase):
                      SEQUENCE=[{"T": step, "V": raw_counts[i, step].astype(float).tolist()} for step in range(12)])
                 for i, row in enumerate(meta.itertuples())]
         tables = {
-            "FEATURE_MAP": Frame(rows=[dict(FEATURE_INDEX=i, FEATURE_NAME=name, FEATURE_COLUMN=aliases[i]) for i, name in enumerate(names)]),
+            "FEATURE_MAP": Frame(frame=pd.DataFrame([dict(FEATURE_INDEX=i, FEATURE_NAME=name, FEATURE_COLUMN=aliases[i]) for i, name in enumerate(names)]), rows=[dict(FEATURE_INDEX=i, FEATURE_NAME=name, FEATURE_COLUMN=aliases[i]) for i, name in enumerate(names)]),
             "PATIENT_SPLIT": Frame(meta),
             "SNAPSHOTS": Frame(meta[["PATIENT_ID", "END_DT", "RESP"]]),
             "TENSOR_MONTHLY": Frame(rows=rows, columns=["PATIENT_ID", "END_DT", "RESP", "TIME_STEP"] + aliases),
@@ -167,10 +167,24 @@ class NotebookDeliveryTests(unittest.TestCase):
         config = copy.deepcopy(fixture.config)
         config["date_policy"] = "month_end_history"
         config["raw_automl"] = dict(date_policy="month_end_history", chunk_size=5000, max_features=512)
+        config['client_universe'] = dict(table='DB.SC.TAK861_TX_READY_PATIENT_UNIVERSE_DL',split_seed=42)
         raw_calls = []
-        def raw_builder(read_query, metadata, source_config):
-            raw_calls.append((metadata.copy(), source_config.copy()))
-            return dict(setup, receipt={"source": "synthetic raw adapter fixture"})
+        from experiments.automl_sequence import inputs
+        req,_=inputs.make_requests(meta,date_policy='month_end_history')
+        long_rows=[]
+        for patient,date in req.itertuples(index=False,name=None):
+            p=int(patient[1:]); month=date.month
+            long_rows.append(dict(PATIENT_ID=patient,AS_OF_DATE=date,ROW_KIND='COVERAGE',CATEGORY=None,
+                VALUE=None,RECENT_VALUE=None,MAX_EVENT_DATE=date,AGE=30+p%40,AGE_CONFLICT=0))
+            for j in range(3):
+                value=7+(p*(j+1)+month)%13
+                long_rows.append(dict(PATIENT_ID=patient,AS_OF_DATE=date,ROW_KIND='FEATURE',CATEGORY='C'+str(j),
+                    VALUE=value,RECENT_VALUE=3+(p+j)%3,MAX_EVENT_DATE=date,AGE=None,AGE_CONFLICT=None))
+        def read_query(query):
+            if query.startswith('SELECT PATIENT_ID,END_DT,RESP FROM '):
+                return meta[['PATIENT_ID','END_DT','RESP']]
+            raw_calls.append(query)
+            return pd.DataFrame(long_rows)
         output = io.StringIO()
         last_namespace = None
         with temporary_module_entries(fake_modules), redirect_stdout(output):
@@ -187,16 +201,20 @@ class NotebookDeliveryTests(unittest.TestCase):
                 wh.read_sf = read_sf
                 wh.save_artifacts, wh.read_artifacts, wh.table_exists = save, read, store.__contains__
                 wf.save_artifacts, wf.read_artifacts, wf.table_exists = save, read, store.__contains__
-                namespace["raw"].build_raw_automl_inputs = raw_builder
+                namespace['read_query'] = read_query
+                # Double only live count aggregation, not client alignment or the raw AutoML builder.
+                fc=namespace['modules']['fresh_counts']
+                fc.resolve_source_contract=lambda *args,**kwargs: {'synthetic':True}
+                fc.build_source_frames=lambda *args,**kwargs: dict(tables,manifest={'synthetic_spark_aggregate':True},
+                    cached_aggregates=types.SimpleNamespace(unpersist=lambda **kw:None))
                 for index, cell in enumerate(cells[3:], 3):
                     if cell["cell_type"] == "code":
                         exec(compile("".join(cell["source"]), filename+f":cell{index}", "exec"), namespace)
                 last_namespace = namespace
-        self.assertEqual(queried, ["FEATURE_MAP", "PATIENT_SPLIT", "SNAPSHOTS", "TENSOR_MONTHLY"])
-        self.assertEqual(len(extraction_calls), 1)
+        self.assertEqual(queried, ["PATIENT_SPLIT", "FEATURE_MAP"])
         self.assertEqual(len(raw_calls), 1)
-        self.assertEqual(set(extraction_calls[0]), {"PATIENT_ID", "AS_OF_DATE"})
-        self.assertFalse(extraction_calls[0].duplicated(["PATIENT_ID", "AS_OF_DATE"]).any())
+        self.assertIn('FROM VALUES',raw_calls[0])
+        self.assertNotIn('RESP',raw_calls[0])
         self.assertFalse(last_namespace["RUN_FINAL_TEST"])
         self.assertEqual(last_namespace["report"]["split"], "validation")
         self.assertEqual(set(last_namespace["report"]["metrics"]), {"COUNT", "STATIC_FUSION", "TEMPORAL_FUSION"})

@@ -73,7 +73,7 @@ def load_count_inputs(read_sf, source_prefix, source_version):
                 raise ValueError("Count tensor duplicate, changed label or incomplete calendar positions")
             block = np.asarray([r["V"] for r in seq], dtype=np.float64)
             finite = np.isfinite(block)
-            if block.shape != (12, 1028) or np.isinf(block).any() or (block[finite] < 0).any() or (block[finite] != np.floor(block[finite])).any():
+            if block.shape != (12, 1028) or not finite.all() or (block[finite] < 0).any() or (block[finite] != np.floor(block[finite])).any():
                 raise ValueError("Invalid raw count values")
             converted = block.astype(np.float32)
             if (converted[finite].astype(np.float64) != block[finite]).any():

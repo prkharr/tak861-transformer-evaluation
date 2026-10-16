@@ -1,49 +1,58 @@
-# Two AutoML experiments
+# Two AutoML experiments â€” client universe revision
 
-The delivery uses the existing five notebooks under `notebooks/V63 Snapshot Padding`. Run 01–04 in order; Notebook 05 compares completed predictors. Helpers are embedded, so no checkout, sibling notebook import or historical fitted model is required at execution.
+Current run: **R20261016A**. The five self-contained notebooks in
+`notebooks/V63 Snapshot Padding` now target Brian's
+`TAK861_TX_READY_PATIENT_UNIVERSE_DL`. Read the
+[client universe guide](CLIENT_UNIVERSE_20261016.md) for source resolution,
+cohort audits and exact changes. Actual private-data execution is pending.
 
-## Current status
+| Notebook | Purpose |
+|---|---|
+|01|Resolve client universe, preserve patient partitions, rebuild counts, extract real historical AutoML tensors|
+|02|TRAIN-only feature quality, preprocessing, grouped proxy ranking and feature-count selection|
+|03|COUNT, STATIC_FUSION, TEMPORAL_FUSION; three fixed seeds each, with regularization and resumable fits|
+|04|Validation histories, feature reliance and immutable model/threshold lock|
+|05|Paired lift comparison, capacity metrics and conditional patient-cluster uncertainty|
 
-R20261013C includes the raw historical AutoML extractor and all five notebooks. All 58 local checks passed in 46.334 seconds, including synthetic execution of all five notebook cell sequences. Generated SQL passed a Snowflake syntax parse. These checks do not establish live source permissions, warehouse execution or clinical results. The user authorized the Git push and explicitly deferred Claude review; no fresh Claude approval is claimed.
+Use identical CONFIG/RUN_ID in all five notebooks. Existing private Spark and
+Snowflake connection objects supply access; credentials are not embedded.
+Table discovery requires a unique visible exact-name match. Supply the verified
+three-part table identifier if ambiguous; never guess a schema. CCSR lookup also
+requires a unique verified dictionary or explicit configured source.
 
-LIFT at the top 10% of snapshots is the declared primary default for TRAIN grouped proxy ranking/K and validation checkpointing, scheduling, early stopping, reliance and paired comparison. Top 20%/30% are secondary. The capacity is an engineering default, not a recovered business decision. AP/AUC/calibration and threshold metrics remain supporting evidence. Freeze any change before fitting.
+Only old FEATURE_MAP and PATIENT_SPLIT are reused as the fixed 1,028 count
+vocabulary and patient membership. No old tensors, scores, checkpoints or winner
+are inputs. All count values are reaggregated for the new universe. New patients
+use a seeded hash split; old patients never move between partitions. Added,
+removed and label-changed snapshots are audited; shared-key label changes fail.
 
-## Experiment and stage contracts
+AutoML is computed at each unique patient/date, with 12 rolling monthly anchors
+and a 12-month lookback per anchor. Step zero is the actual END_DT. No current
+vector is broadcast backward. No target-aware legacy caps, filters, types or
+importance are reused. Raw vocabulary uses TRAIN patient frequency only. The
+512-column ceiling retains complete count/recent pairs plus AGE, so at most
+511 columns are used before TRAIN feature selection. Missing windows retain
+explicit masks; observed absence of a category is zero.
 
-| Stage | Purpose | Output |
-|---|---|---|
-|01|Verify counts/cohort/splits; extract and align actual raw AutoML history|INPUTS|
-|02|TRAIN-only quality, fold-local proxy selection and registered protocol|PREPARATION|
-|03|Fit every registered arm/seed; save each completed fit|Per-arm/seed models|
-|04|Validation histories, reliance and model-specific threshold lock|LOCK|
-|05|Paired comparison, calibration and operational-capacity metrics|VALIDATION_COMPARISON; optional FINAL_TEST|
+Lift@10% of snapshots is the primary declared default; 20%/30% are secondary.
+AP, ROC AUC and calibration remain supporting metrics. Capacity is not a
+confirmed unique-patient outreach requirement. LightGBM is deferred in this run.
+Dropout, AdamW weight decay, patient weights, gradient clipping, validation-lift
+checkpointing, early stopping and learning-rate scheduling remain enabled.
 
-COUNT starts with all 1,028 count candidates. STATIC_FUSION adds the current AutoML vector and availability indicator to the count representation. TEMPORAL_FUSION uses real AutoML vectors at all 12 dates with availability indicators. The same count subset, common AutoML subset, cohort/RESP/patient split, seeds and training settings support matched contrasts. Optional AutoML-only controls remain off. LightGBM is deferred for this bounded run; these three arms do not establish superiority over LightGBM.
+`RUN_FINAL_TEST=False`. Existing TEST patients were previously inspected; added
+snapshots do not restore an untouched holdout. Validation intervals condition
+on models selected with validation labels and are descriptive. New prevalence
+means old absolute lift is not a like-for-like benchmark. Source LATEST tables
+do not establish historical ingestion availability, and overlapping AutoML
+windows can span roughly 23 months. Fixed count dictionary provenance remains
+qualified; fresh counts are not claimed identical to historical tensor values.
 
-The default is nine encoder fits, not the earlier large search. K comes from grouped TRAIN proxy CV and one-SE selection rather than an arbitrary final K; this proxy is not proof of an encoder-optimal subset. Diagnostics/removal reasons, ranking and final feature order remain visible. Report actual parameter counts/runtime rather than a time promise.
+See [validation receipt](local_validation.json) and [build manifest](build_manifest.json)
+for the exact tested bytes. Tests run all five generated notebooks using a real
+raw AutoML adapter with a simulated SQL response; Spark count aggregation and
+warehouse I/O remain doubles. Snowflake syntax parsing is not live validation.
+Review status is recorded in [review disposition](CLAUDE_REVIEW_20261016.md).
 
-## Newly declared raw source contract
-
-Read [source evidence](INPUT_SOURCE_EVIDENCE.md). The received legacy code filters categories with RESP even in scoring mode and learns positive-class caps, types and importance. The new path must not reuse these fitted values or execute shared-output legacy writers. It uses raw event information and label-blind vocabulary discovery by TRAIN patient frequency, with a declared 512-feature candidate cap and 5,000-request extraction chunks. The cap is a resource bound, not a historically recovered final feature count. All1028 count candidates remain separate and intact.
-
-Step 0 is exact END_DT, which may be the 21st; older dates are the preceding 11 calendar month ends. Extract each unique patient/date once. Do not move the current cutoff to month end or broadcast its vector backward. Twelve overlapping 12-month summaries can span roughly 23 months of unique history; this inferred support difference means improvement would not isolate architecture alone.
-
-No-claim as-of requests retain NaN and maskFalse; they do not remove patients or become silently observed zeros. Indicators describe available extracted activity, not verified enrollment/clinical observation. Latest provider/plan/catalog references do not establish historical ingestion availability. New sanitization/counting grain and omitted positional ICD10PCS enrichment mean these features are not a reproduction of the old261 fields. Full source contracts/identities and these limitations must be saved.
-
-Verified matching raw FEATURE_MAP/SNAPSHOTS/PATIENT_SPLIT/TENSOR_MONTHLY inputs may be reused after exact checks. No previous model/search/LOCK/FINAL/score/winner is an input. Same-run intermediates and exact matching patient/date caches are valid dependencies. Optional read-only GET_DDL supports deployed-version comparison; complete procedure text is no longer missing and recovery-and-stop is not the intended new default.
-
-## Running and interpreting
-
-Use the approved Spark/Snowflake connection and installed NumPy,pandas,scikit-learn,PyTorch,Matplotlib/IPython. Keep secrets in existing private connection objects. Use identical RUN_ID/CONFIG in all five notebooks. Changed source/data/config/code needs a new identity; unchanged completed fits resume only under matching contracts/hashes.
-
-`RUN_FINAL_TEST=False` remains default. The cohort TEST has already been examined twice, so another evaluation is retrospective ordinal3, not an untouched OOT result. Lock models/thresholds before any permitted evaluation; immutable final artifacts are reused. Never choose K/seeds/epochs/thresholds/capacity using TEST.
-
-Positive paired deltas mean first named model minus second. Patient-cluster intervals condition on fitted predictors and exclude search/training uncertainty. Crossingzero is inconclusive, not equivalence. Each model uses its own validation threshold. No new result is implied by generated code or synthetic scores.
-
-[Historical addendum findings](HISTORICAL_ADDENDUM_FINDINGS.md) summarize recovered output-layer/lift results and upstream limitations. V4 used an additive static branch, not an AutoML sequence. Old results must not be labeled R20261013C outcomes.
-
-## Validation and rebuild
-
-`build_notebooks.py` embeds helpers and writes the exact content manifest. Tests exercise synthetic inputs, source/store doubles, fits, restoration, lift comparison, masks and gates. The latest receipt must match the current bytes; previous passing results do not certify later changes. Fresh raw integration results are pending at this documentation checkpoint.
-
-Keep patient rows, source definitions with private details, prediction arrays and credentials out of Git and centralized memory. Private runtime artifacts remain in the approved store; context contains derived evidence and status only.
+[Historical addendum findings](HISTORICAL_ADDENDUM_FINDINGS.md) remain descriptive
+old-cohort evidence, not results of the new notebooks.
