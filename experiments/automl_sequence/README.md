@@ -56,3 +56,5 @@ Review status is recorded in [review disposition](CLAUDE_REVIEW_20261016.md).
 
 [Historical addendum findings](HISTORICAL_ADDENDUM_FINDINGS.md) remain descriptive
 old-cohort evidence, not results of the new notebooks.
+
+Current connection setup: each notebook's first code cell defines sf_options. Fill its blank sfPassword with your PAT locally in Databricks; do not commit the filled value. This replaces the earlier requirement for pre-existing connection globals. The adapter retains DS_ML for experiment artifacts. All five notebook filenames now end in _AutoML.ipynb.

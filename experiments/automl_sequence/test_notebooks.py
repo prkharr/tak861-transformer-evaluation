@@ -23,9 +23,9 @@ from experiments.automl_sequence.test_count_loader import Expression, Frame
 
 
 BOOKS = Path(__file__).resolve().parents[2] / "notebooks" / "AutoML Sequential Features"
-FILENAMES = ["01_tensor_initialization.ipynb", "02_patient_level_split.ipynb",
-             "03_transformer_training.ipynb", "04_transformer_evaluation.ipynb",
-             "05_model_comparison.ipynb"]
+FILENAMES = ["01_tensor_initialization_AutoML.ipynb", "02_patient_level_split_AutoML.ipynb",
+             "03_transformer_training_AutoML.ipynb", "04_transformer_evaluation_AutoML.ipynb",
+             "05_model_comparison_AutoML.ipynb"]
 
 
 def notebook(name):
@@ -192,7 +192,13 @@ class NotebookDeliveryTests(unittest.TestCase):
                 cells = notebook(filename)["cells"]
                 namespace = {"__name__": "__synthetic_notebook__", "spark": object(),
                              "sf_options_dl_poc": {"synthetic": True}}
-                exec(compile("".join(cells[1]["source"]), filename+":config", "exec"), namespace)
+                config_source = "".join(cells[1]["source"])
+                with self.assertRaisesRegex(ValueError, "Enter your PAT"):
+                    exec(compile(config_source, filename+":blank_pat", "exec"), namespace)
+                config_source = config_source.replace('"sfPassword": ""', '"sfPassword": "SYNTHETIC_NOT_A_CREDENTIAL"')
+                exec(compile(config_source, filename+":config", "exec"), namespace)
+                self.assertEqual(namespace['sf_options_dl_poc']['sfPassword'], 'SYNTHETIC_NOT_A_CREDENTIAL')
+                self.assertNotIn('synthetic', namespace['sf_options_dl_poc'])
                 namespace["CONFIG"] = copy.deepcopy(config)
                 namespace["RUN_ID"] = "SYNTHETICNOTEBOOKS"
                 exec(compile("".join(cells[2]["source"]), filename+":embedded", "exec"), namespace)

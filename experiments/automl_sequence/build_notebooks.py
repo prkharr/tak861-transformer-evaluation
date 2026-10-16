@@ -29,6 +29,19 @@ def build():
     implementation = hashlib.sha256((source_hash + Path(__file__).read_text(encoding="utf-8")).encode()).hexdigest()
     config = code('''
     import os
+    # Enter your PAT locally in each notebook before running this cell.
+    # Keep the PAT out of Git and shared notebook exports. Do not print this dictionary.
+    sf_options = {
+        "sfUrl": "KOMODOHEALTH-STD_APRCRWRZYNKCIWYRUD.snowflakecomputing.com",
+        "sfUser": "PRAKHAR.PATHAK@TAKEDA.COM",
+        "sfPassword": "",  # Paste your PAT here in Databricks.
+        "sfRole": "TAKEDA_TA_SENTINEL_ROLE",
+        "sfWarehouse": "WH_ADHOC",
+        "sfDatabase": "DSVC_TAKEDA_TA_PRIVATE",
+        "sfSchema": "TAK861",
+    }
+    if not sf_options["sfPassword"].strip():
+        raise ValueError("Enter your PAT in sf_options['sfPassword'] in this notebook's first code cell.")
     os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
     RUN_ID = "R20261016A"  # Brian's revised universe; never reuse the old-cohort run identity.
     SOURCE_PREFIX = "TAK861_TX_READY_V63_DL_POC"
@@ -49,10 +62,9 @@ def build():
                   "weighting": "patient", "balance": "sqrt", "threads": 8, "device": "cpu"}}
     if "spark" not in globals():
         raise RuntimeError("An active Spark session and the existing private source connection are required.")
-    connection = globals().get("sf_options_dl_poc", globals().get("sf_options"))
-    if not isinstance(connection, dict) or not connection:
-        raise RuntimeError("Initialize the private source connection through the existing secret configuration.")
-    sf_options_dl_poc = dict(connection)
+    # Always use this cell's credentials, not stale settings from another notebook.
+    sf_options_dl_poc = dict(sf_options)
+    # Existing experiment artifacts live in DS_ML; source queries use qualified names.
     sf_options_dl_poc.update(sfDatabase="DSVC_TAKEDA_TA_PRIVATE", sfSchema="DS_ML")
     ''')
     helper = code('''
@@ -107,7 +119,7 @@ def build():
     The prediction unit is a patient snapshot; capacity is not a unique-patient outreach count.
     """
     notebooks = {}
-    notebooks["01_tensor_initialization.ipynb"] = [md("# 01 · Source inputs and aligned AutoML tensors\n" + header), config, helper,
+    notebooks["01_tensor_initialization_AutoML.ipynb"] = [md("# 01 · Source inputs and aligned AutoML tensors\n" + header), config, helper,
         md('''
         ## Historical AutoML extraction
         The raw extractor is included, derived from the supplied DX/PX/RX and AGE procedure.
@@ -210,7 +222,7 @@ def build():
         print("Notebook 01 complete in seconds:", round(time.perf_counter()-started, 2))
         del data
         '''), md("**Output:** immutable run INPUTS artifact containing tensors, exact feature order, cohort/splits, source contracts and content hashes. No model or performance result has been produced in this notebook.")]
-    notebooks["02_patient_level_split.ipynb"] = [md("# 02 · Frozen splits, feature diagnostics and selection\n" + header), config, helper,
+    notebooks["02_patient_level_split_AutoML.ipynb"] = [md("# 02 · Frozen splits, feature diagnostics and selection\n" + header), config, helper,
         md('''
         Patient membership is retained from the validated count reference; this stage verifies it.
         Fit diagnostics, imputation, count log transforms, scaling and selection on TRAIN only.
@@ -265,7 +277,7 @@ def build():
         print("Protocol hash:", wf.digest(protocol))
         print("No TEST distribution or prediction was used for selection.")
         ''')]
-    notebooks["03_transformer_training.ipynb"] = [md("# 03 · Matched Transformer fits\n" + header), config, helper,
+    notebooks["03_transformer_training_AutoML.ipynb"] = [md("# 03 · Matched Transformer fits\n" + header), config, helper,
         md('''
         Train the three registered arms with identical seeds and the same bounded architecture:
         one encoder layer, 64-dimensional representation, four heads and feed-forward width 128.
@@ -295,7 +307,7 @@ def build():
         aggregate(pd.DataFrame(rows))
         print("All registered fits saved. No TEST predictions computed.")
         ''')]
-    notebooks["04_transformer_evaluation.ipynb"] = [md("# 04 · Validation robustness and predictor lock\n" + header), config, helper,
+    notebooks["04_transformer_evaluation_AutoML.ipynb"] = [md("# 04 · Validation robustness and predictor lock\n" + header), config, helper,
         code('''
         data = load_stage()
         saved = wh.read_artifacts(RUN_PREFIX+"_PREPARATION", wf.PREP_NAMES)
@@ -368,7 +380,7 @@ def build():
         else:
             print("Reliance diagnostic skipped by explicit setting; no rank-versus-reliance conclusion.")
         ''')]
-    notebooks["05_model_comparison.ipynb"] = [md("# 05 · Incremental value and final comparison\n" + header), config, helper,
+    notebooks["05_model_comparison_AutoML.ipynb"] = [md("# 05 · Incremental value and final comparison\n" + header), config, helper,
         md('''
         Primary contrasts: STATIC_FUSION minus COUNT, TEMPORAL_FUSION minus COUNT,
         and TEMPORAL_FUSION minus STATIC_FUSION. Positive lift deltas favor the first arm.

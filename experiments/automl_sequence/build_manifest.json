@@ -1,30 +1,30 @@
 {
-  "implementation_sha256": "69bc80222cefeaa0b064213484f061edc4a128fb3d9be74e70f44d45a0a7bb14",
+  "implementation_sha256": "bf8b1eb734d7c86729a8f57a0dcf0538abeccbc8521e99e0cd6f8b7cff30d499",
   "source_sha256": "6d7f5556aba8335f1c09bb668812c8f1f4df4c2d5d19d5198cfed0fcda04337d",
   "notebooks": [
     {
-      "path": "notebooks\\AutoML Sequential Features\\01_tensor_initialization.ipynb",
-      "sha256": "42c80e8a8abdc4f265055d311471e192c94c51f07bfc63c11743c4198ab9b6eb",
+      "path": "notebooks\\AutoML Sequential Features\\01_tensor_initialization_AutoML.ipynb",
+      "sha256": "cb79debfcaf2e37fa8f6cc55fbb5b362357a92516ffef64ba790fb07e54eaeb1",
       "cells": 9
     },
     {
-      "path": "notebooks\\AutoML Sequential Features\\02_patient_level_split.ipynb",
-      "sha256": "ecf284b8b85457b542ccb549e3e87bf7d490849056d4cff842ddf662f7007f98",
+      "path": "notebooks\\AutoML Sequential Features\\02_patient_level_split_AutoML.ipynb",
+      "sha256": "fc244ad76d9b6c1a69432c5e1afc3db8ef95ed80f2bdc78e3aef8f6872d96ebc",
       "cells": 7
     },
     {
-      "path": "notebooks\\AutoML Sequential Features\\03_transformer_training.ipynb",
-      "sha256": "bd1246ad96dc7fefff6e18284ce0015a3a0d4513a1547b27cd2bef92c2028154",
+      "path": "notebooks\\AutoML Sequential Features\\03_transformer_training_AutoML.ipynb",
+      "sha256": "801bf8fba01690e519313cd46c339a144c32aeeed29a83b7c3841fc7ede2f826",
       "cells": 5
     },
     {
-      "path": "notebooks\\AutoML Sequential Features\\04_transformer_evaluation.ipynb",
-      "sha256": "e2d0cf340c94f953fcf0aa9070507b2ea9cdf6d8ddd4e32069429b88133c1431",
+      "path": "notebooks\\AutoML Sequential Features\\04_transformer_evaluation_AutoML.ipynb",
+      "sha256": "b9159272e1ea23f10e9156bca371b8b3016f279010e0ab58958d10ab440be763",
       "cells": 8
     },
     {
-      "path": "notebooks\\AutoML Sequential Features\\05_model_comparison.ipynb",
-      "sha256": "b9e8c6742f7962f18b61774c5486c0336fbdeada50e644c7990d7d769e4ce4a4",
+      "path": "notebooks\\AutoML Sequential Features\\05_model_comparison_AutoML.ipynb",
+      "sha256": "073f14ea1e49f952a25a14dbb1b355f727bdeaa63b290bce95b83fa2f03b9736",
       "cells": 7
     }
   ],

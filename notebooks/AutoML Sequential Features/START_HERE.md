@@ -77,3 +77,5 @@ The maximum is 139 ensemble prediction calls per family, plus one checkpoint-out
 - Original V63 scores are recovered for descriptive VALIDATION context only; historical fit exclusion and score semantics remain unknown. Rounded historical screenshots are not new model results.
 
 See `REVIEW_DECISIONS.md` for Claude's actual design review and dispositions, `VALIDATION.md` for completed software checks, and `RUN_HANDOFF.md` for the remaining execution/recovery request. The canonical project memory is `C:/Users/prakhar/Desktop/Response/DLPOCfinal/project_context/TAK861_MASTER_CONTEXT.md`.
+
+Current connection setup: each notebook's first code cell defines sf_options. Fill its blank sfPassword with your PAT locally in Databricks; do not commit the filled value. This replaces the earlier requirement for pre-existing connection globals. The adapter retains DS_ML for experiment artifacts. All five notebook filenames now end in _AutoML.ipynb.
