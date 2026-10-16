@@ -7,7 +7,7 @@ from textwrap import dedent
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
-DEST = REPO / "notebooks" / "V63 Snapshot Padding"
+DEST = REPO / "notebooks" / "AutoML Sequential Features"
 
 
 def md(text):

@@ -1,30 +1,30 @@
 {
-  "implementation_sha256": "29ecd4a11682abc345ae8fa335622035a0d5d8b332f7ae7ec531ebed54aada6b",
+  "implementation_sha256": "69bc80222cefeaa0b064213484f061edc4a128fb3d9be74e70f44d45a0a7bb14",
   "source_sha256": "6d7f5556aba8335f1c09bb668812c8f1f4df4c2d5d19d5198cfed0fcda04337d",
   "notebooks": [
     {
-      "path": "notebooks\\V63 Snapshot Padding\\01_tensor_initialization.ipynb",
-      "sha256": "95aab93ef3d23e1ce81897ac8f7aa7fe436ecb6ecc32edce176cd7d736625338",
+      "path": "notebooks\\AutoML Sequential Features\\01_tensor_initialization.ipynb",
+      "sha256": "42c80e8a8abdc4f265055d311471e192c94c51f07bfc63c11743c4198ab9b6eb",
       "cells": 9
     },
     {
-      "path": "notebooks\\V63 Snapshot Padding\\02_patient_level_split.ipynb",
-      "sha256": "7ab9e0428be9e815e4665a175cae473c2ebec5a619c8c4f94658f6825aa3394e",
+      "path": "notebooks\\AutoML Sequential Features\\02_patient_level_split.ipynb",
+      "sha256": "ecf284b8b85457b542ccb549e3e87bf7d490849056d4cff842ddf662f7007f98",
       "cells": 7
     },
     {
-      "path": "notebooks\\V63 Snapshot Padding\\03_transformer_training.ipynb",
-      "sha256": "2b0528a120903c6481e905a38f154a6c7f2302363fd2b88f16fed671faf23bf1",
+      "path": "notebooks\\AutoML Sequential Features\\03_transformer_training.ipynb",
+      "sha256": "bd1246ad96dc7fefff6e18284ce0015a3a0d4513a1547b27cd2bef92c2028154",
       "cells": 5
     },
     {
-      "path": "notebooks\\V63 Snapshot Padding\\04_transformer_evaluation.ipynb",
-      "sha256": "8be7116438cfc7c993fa1c655f220d27010d82ae7ca76520c35a60a7bdfef6bf",
+      "path": "notebooks\\AutoML Sequential Features\\04_transformer_evaluation.ipynb",
+      "sha256": "e2d0cf340c94f953fcf0aa9070507b2ea9cdf6d8ddd4e32069429b88133c1431",
       "cells": 8
     },
     {
-      "path": "notebooks\\V63 Snapshot Padding\\05_model_comparison.ipynb",
-      "sha256": "93c07bdcdfc2ac08574c67f270b831c11970fc29ca6ea9029c34a0954e37a8aa",
+      "path": "notebooks\\AutoML Sequential Features\\05_model_comparison.ipynb",
+      "sha256": "b9e8c6742f7962f18b61774c5486c0336fbdeada50e644c7990d7d769e4ce4a4",
       "cells": 7
     }
   ],

@@ -1,7 +1,7 @@
 # Two AutoML experiments — client universe revision
 
 Current run: **R20261016A**. The five self-contained notebooks in
-`notebooks/V63 Snapshot Padding` now target Brian's
+`notebooks/AutoML Sequential Features` now target Brian's
 `TAK861_TX_READY_PATIENT_UNIVERSE_DL`. Read the
 [client universe guide](CLIENT_UNIVERSE_20261016.md) for source resolution,
 cohort audits and exact changes. Actual private-data execution is pending.

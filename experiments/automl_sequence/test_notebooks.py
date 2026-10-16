@@ -22,7 +22,7 @@ from experiments.automl_sequence import source_recovery
 from experiments.automl_sequence.test_count_loader import Expression, Frame
 
 
-BOOKS = Path(__file__).resolve().parents[2] / "notebooks" / "V63 Snapshot Padding"
+BOOKS = Path(__file__).resolve().parents[2] / "notebooks" / "AutoML Sequential Features"
 FILENAMES = ["01_tensor_initialization.ipynb", "02_patient_level_split.ipynb",
              "03_transformer_training.ipynb", "04_transformer_evaluation.ipynb",
              "05_model_comparison.ipynb"]

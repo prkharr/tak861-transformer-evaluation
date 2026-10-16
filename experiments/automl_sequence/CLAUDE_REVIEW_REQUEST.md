@@ -2,7 +2,7 @@
 
 The user explicitly instructed us to skip Claude review for this Git delivery. This document is a future review brief, not evidence of review or approval.
 
-Review the current five notebooks under `notebooks/V63 Snapshot Padding` and their embedded sources in `experiments/automl_sequence`. Use `build_manifest.json` and `local_validation.json` to identify the exact implementation. R20261013C passed 58 local synthetic checks. No clinical extraction/training or independent OOT evaluation was performed here.
+Review the current five notebooks under `notebooks/AutoML Sequential Features` and their embedded sources in `experiments/automl_sequence`. Use `build_manifest.json` and `local_validation.json` to identify the exact implementation. R20261013C passed 58 local synthetic checks. No clinical extraction/training or independent OOT evaluation was performed here.
 
 Check the raw extraction against the now-supplied complete FEATURE_CREATION_PROC and FEATURE_ENGINEERING_PROD source evidence. Assess per-date event windows, RX PAID populations, counts and provider grains, missing-history handling, target-independent dictionary use, the declared 512-feature TRAIN-frequency resource cap, and explicit changes from the legacy 261-feature table. Latest source/provider/plan/code tables do not establish historical availability. No-claim windows indicate unknown availability, not observed zero history.
 
