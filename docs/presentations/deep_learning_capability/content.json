@@ -1,0 +1,62 @@
+{
+  "title": "Deep learning and automatic feature creation",
+  "date": "20 October 2026",
+  "slides": [
+    {
+      "title": "Deep learning & automatic feature creation",
+      "subtitle": "Current pilot: predict first advanced-therapy initiation within 90 days for people with narcolepsy type 1.",
+      "stages": [
+        {
+          "heading": "Historical records",
+          "body": "Monthly diagnoses, procedures\nand medicines form a sequence."
+        },
+        {
+          "heading": "Automatic features",
+          "body": "Create counts and recent-activity\nshares. Select useful inputs."
+        },
+        {
+          "heading": "Deep learning",
+          "body": "Learn patterns over time and\nproduce a ranking score."
+        }
+      ],
+      "comparison": "Comparing counts alone, counts + current features, and counts + historical features.",
+      "statusHeading": "Where we are",
+      "status": "Five notebooks built and locally checked.\nNew data runs and performance results are pending.",
+      "notes": "The current pilot concerns first advanced-therapy initiation within 90 days among eligible people with narcolepsy type 1. The outcome labels come from the existing data preparation. Their construction has not yet been independently verified against that horizon. A feature is a measurable input to a model, such as an activity count or the share of activity that occurred recently. Rule-based extraction creates these explicit features. Training-only selection chooses eligible useful inputs. A Transformer separately learns internal representations of the history and produces a ranking score. Learned internal representations are not yet a standalone exported feature product.\n\nCurrent implementation: R20261016A, with connection and filename follow-up at repository revision 361ee87. Five notebooks cover input preparation, feature selection, training, review and model lock, and evaluation. They compare monthly counts alone, counts plus one current feature summary, and counts plus actual historical feature summaries. The latter uses twelve monthly reference dates, not copies of the current summary. The latest recorded local checks contain 69 passing synthetic tests. Source I/O and Spark aggregation used stand-in sources. No new extraction, training results, measured uplift or production readiness is claimed.\n\nEvaluation currently prioritizes lift in the highest-scored 10% of snapshots, not unique people. The TEST population has prior inspection history, so it is not an untouched confirmation sample. A suitable fresh evaluation remains part of future validation. The current three-way comparison defers the gradient-boosting comparison. Earlier metrics should not be presented as evidence of improvement for this revision.\n\nSources: https://github.com/prkharr/tak861-transformer-evaluation/blob/361ee87/experiments/automl_sequence/README.md ; https://github.com/prkharr/tak861-transformer-evaluation/blob/361ee87/experiments/automl_sequence/local_validation.json ; https://github.com/prkharr/tak861-transformer-evaluation/blob/361ee87/experiments/automl_sequence/raw_automl.py ; https://github.com/prkharr/tak861-transformer-evaluation/blob/361ee87/experiments/automl_sequence/modeling.py . The illustration is a generated conceptual image, not observed data.\n\nTarget definition reference: project_context/data_context/resp_definition.md, documented target for eligible NT1 snapshots. The repository README identifies the project as TAK861 / NT1."
+    },
+    {
+      "title": "A reusable capability for future projects",
+      "subtitle": "Proposed internal plug-and-play workflow with a shared core and project settings.",
+      "stages": [
+        {
+          "number": "01",
+          "heading": "Connect data",
+          "body": "Map records and dates.\nDefine the outcome\nand prediction window."
+        },
+        {
+          "number": "02",
+          "heading": "Create features",
+          "body": "Generate counts and\nrecent-activity shares.\nSelect useful inputs."
+        },
+        {
+          "number": "03",
+          "heading": "Train & compare",
+          "body": "Fit deep learning and\nsimpler models. Test value\non untouched data."
+        },
+        {
+          "number": "04",
+          "heading": "Deliver outputs",
+          "body": "Return feature tables,\nscores and evaluation\nthrough one interface."
+        }
+      ],
+      "reuseHeading": "Reuse across projects",
+      "reuseBody": "Feature recipes, training modules,\nevaluation and version tracking.",
+      "configureHeading": "Configure for each project",
+      "configureBody": "Source mapping, outcome and time windows.\nRetrain and validate for the new setting.",
+      "roadmapHeading": "Next milestone",
+      "roadmap": "Validate this pilot, package shared modules, then prove reuse on a second project.",
+      "value": "Intended value: less repeated feature work and faster setup for future projects.",
+      "notes": "This slide describes proposed future scope, not a capability already in production. Plug-and-play means reusing a controlled workflow with explicit configuration and validation. It does not mean that arbitrary datasets or trained model weights transfer without adaptation. Initial reuse should focus on similar longitudinal structured records. Other modalities need additional adapters and validation.\n\nThe reusable core would include explicit feature-generation recipes, training-only preprocessing and feature selection, model training, matched evaluation, and versioned artifacts. Each new project still requires agreed source mappings, record grain, outcome definition, time cutoffs, retraining and validation. One interface for feature tables, scores and evaluation is a packaging proposal. Exporting a general-purpose learned embedding service would require separate design and validation.\n\nThe next milestone is to execute the present pilot on approved project data, check source availability and chronology, and measure performance against a suitable simpler reference. Because previously inspected TEST patients cannot become untouched again, any generalization claim needs an appropriate fresh evaluation design. Only then should shared components be packaged and piloted on a second project. Faster setup and reduced manual feature work are intended benefits, not measured savings.\n\nBasis for the reusable components: https://github.com/prkharr/tak861-transformer-evaluation/blob/361ee87/experiments/automl_sequence/README.md ; https://github.com/prkharr/tak861-transformer-evaluation/blob/361ee87/experiments/automl_sequence/raw_automl.py ; https://github.com/prkharr/tak861-transformer-evaluation/blob/361ee87/experiments/automl_sequence/modeling.py . Future scope reflects the requested internal capability."
+    }
+  ]
+}

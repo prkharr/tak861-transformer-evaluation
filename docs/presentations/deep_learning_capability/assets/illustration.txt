@@ -1,0 +1,6 @@
+Asset: feature_creation.png
+Method: built-in image generation.
+Purpose: conceptual illustration only, not measured evidence.
+
+Generation prompt:
+Use case: stylized-concept. Asset type: PowerPoint illustration, wide horizontal composition about 3:1. Create a refined, minimal editorial 3D illustration explaining automatic feature creation. On the left, an orderly stream of small ivory record sheets with rows of tiny teal marks. In the centre, records resolve into a compact, translucent teal stack of feature columns with varied heights and a few subtle gold elements. On the right, a small elegant neural network of connected turquoise and gold beads learns from the feature stack. This is an abstract conceptual illustration, not data evidence. Deep petrol teal background, near #103E49, flat and uniform at every edge to integrate into a presentation. Restrained studio light, matte glass, soft dimensionality, low visual noise. Objects occupy middle horizontal band with generous space around. No words, letters, numerals, legends, labels, logos, watermarks, charts, brain, robot, or arrows. Polished and calm, suitable for a senior leadership presentation. 1536 by 512 if possible.
