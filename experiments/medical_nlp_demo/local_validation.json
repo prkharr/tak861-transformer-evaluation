@@ -1,0 +1,21 @@
+{
+  "status": "PASS",
+  "tests": 10,
+  "elapsed_seconds": 6.675,
+  "python": "3.12.14",
+  "interpreter": "C:\\Users\\prakhar\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe",
+  "sql_parser_runtime": "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\sql_audit",
+  "packages": {
+    "numpy": "2.5.3",
+    "pandas": "3.0.1",
+    "scipy": "1.18.1",
+    "scikit-learn": "1.9.1",
+    "matplotlib": "3.11.2",
+    "joblib": "1.6.0",
+    "sqlglot": "30.22.0"
+  },
+  "notebook_sha256": "d1559264bd3f855ed500d4f984f36b2b3b79dc4dd4221df48bfc75af65b806ef",
+  "private_source_execution": false,
+  "ten_minute_runtime_verified": false,
+  "scope": "Synthetic temporal/TF-IDF/frozen-state/export tests; Snowflake SQL parsed locally, not executed"
+}
