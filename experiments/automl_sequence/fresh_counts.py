@@ -1,4 +1,4 @@
-"""Fresh source-to-count construction for the revised client universe.
+"""Fresh source-to-count construction for the configured cohort.
 
 The SQL reuses the recovered RX/PX/DX extraction structure with an explicit new
 contract: twelve calendar positions ending at each snapshot's END_DT, source-row
@@ -45,7 +45,7 @@ POLICY = {
     "zero": "no mapped source activity; not proof of observation or padding",
     "record_availability": "not reconstructed; event cutoff is enforced but ingestion-as-of is unverified",
     "dictionary_timing": "upstream reference version captured at build; historical-as-of equivalence unverified",
-    "population_labels": "client universe RESP preserved; shared-key changes require producer review",
+    "population_labels": "cohort RESP preserved; shared-key changes require producer review",
 }
 
 
@@ -360,7 +360,7 @@ def build_source_frames(spark, read_query, contract, reference_map, prepared_met
     _check_contract(contract)
     cohort = normalize_cohort(read_query(cohort_query(contract)))
     if not same_cohort(cohort, prepared_metadata):
-        raise ValueError("Client cohort changed between audit and count extraction")
+        raise ValueError("Cohort changed between audit and count extraction")
     mapping_before = _pandas(read_query(mapping_audit_query(contract))).sort_values("FAMILY").reset_index(drop=True)
     _needed({c: None for c in mapping_before}, ["FAMILY", "MAPPING_PAIRS", "MAPPED_CODES", "CATEGORIES", "MAPPING_HASH"], "Mapping audit")
     _require(set(mapping_before.FAMILY) == {"RX", "DX", "PX"} and mapping_before.MAPPING_PAIRS.gt(0).all(), "A source mapping branch is empty.")

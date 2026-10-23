@@ -1,31 +1,31 @@
 {
-  "implementation_sha256": "bf8b1eb734d7c86729a8f57a0dcf0538abeccbc8521e99e0cd6f8b7cff30d499",
-  "source_sha256": "6d7f5556aba8335f1c09bb668812c8f1f4df4c2d5d19d5198cfed0fcda04337d",
+  "implementation_sha256": "69adef9395638375cd5497f598acce84c20c6dff886279601c4953df0e95303b",
+  "source_sha256": "86f3e68006f8bcd6474b383724520be556840ca8fdcc16d265763cb94476069c",
   "notebooks": [
     {
       "path": "notebooks\\AutoML Sequential Features\\01_tensor_initialization_AutoML.ipynb",
-      "sha256": "cb79debfcaf2e37fa8f6cc55fbb5b362357a92516ffef64ba790fb07e54eaeb1",
-      "cells": 9
-    },
-    {
-      "path": "notebooks\\AutoML Sequential Features\\02_patient_level_split_AutoML.ipynb",
-      "sha256": "fc244ad76d9b6c1a69432c5e1afc3db8ef95ed80f2bdc78e3aef8f6872d96ebc",
-      "cells": 7
-    },
-    {
-      "path": "notebooks\\AutoML Sequential Features\\03_transformer_training_AutoML.ipynb",
-      "sha256": "801bf8fba01690e519313cd46c339a144c32aeeed29a83b7c3841fc7ede2f826",
+      "sha256": "6fb50710a82e14209a8a43f5a8bbd2c7fdb3d7b34e96bf002aeb65f6b97bfb72",
       "cells": 5
     },
     {
+      "path": "notebooks\\AutoML Sequential Features\\02_patient_level_split_AutoML.ipynb",
+      "sha256": "90a6388d088fded53dc775c06000712b7375f33e62c12558f15c420929a0303c",
+      "cells": 4
+    },
+    {
+      "path": "notebooks\\AutoML Sequential Features\\03_transformer_training_AutoML.ipynb",
+      "sha256": "112ac53dfd0c1b33bff5ad2fceee840ebb86266db8bd6f0a2d84542fde818403",
+      "cells": 3
+    },
+    {
       "path": "notebooks\\AutoML Sequential Features\\04_transformer_evaluation_AutoML.ipynb",
-      "sha256": "b9159272e1ea23f10e9156bca371b8b3016f279010e0ab58958d10ab440be763",
-      "cells": 8
+      "sha256": "0d79c167abd46a59cf475993c617995367f3d37355a42ff318ed79e173b17e66",
+      "cells": 5
     },
     {
       "path": "notebooks\\AutoML Sequential Features\\05_model_comparison_AutoML.ipynb",
-      "sha256": "073f14ea1e49f952a25a14dbb1b355f727bdeaa63b290bce95b83fa2f03b9736",
-      "cells": 7
+      "sha256": "a43c007455615014d0fb43ab31fc2786e1c2f79941b53f64078128ba745a50e4",
+      "cells": 4
     }
   ],
   "generated_from": "experiments/automl_sequence/build_notebooks.py",

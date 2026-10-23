@@ -9,7 +9,9 @@ import hashlib
 import io
 import json
 from pathlib import Path
+import re
 import sys
+import tokenize
 import types
 import unittest
 from contextlib import contextmanager, redirect_stdout
@@ -19,6 +21,7 @@ import pandas as pd
 
 from experiments.automl_sequence import test_workflow as fixture_module
 from experiments.automl_sequence import source_recovery
+from experiments.automl_sequence import build_notebooks
 from experiments.automl_sequence.test_count_loader import Expression, Frame
 
 
@@ -30,6 +33,22 @@ FILENAMES = ["01_tensor_initialization_AutoML.ipynb", "02_patient_level_split_Au
 
 def notebook(name):
     return json.loads((BOOKS / name).read_text(encoding="utf-8-sig"))
+
+
+def notebook_code_parts(book):
+    """Locate setup cells by their contents, independently of display-cell count."""
+    cells = [(i, "".join(cell["source"])) for i, cell in enumerate(book["cells"])
+             if cell["cell_type"] == "code"]
+    config = next((i, source) for i, source in cells
+                  if "sf_options =" in source and "CONFIG =" in source)
+    helper = next((i, source) for i, source in cells if "EMBEDDED_SOURCES =" in source)
+    remaining = [(i, source) for i, source in cells if i not in {config[0], helper[0]}]
+    return config, helper, remaining
+
+
+def comment_tokens(source):
+    return [token.string for token in tokenize.generate_tokens(io.StringIO(source).readline)
+            if token.type == tokenize.COMMENT]
 
 
 @contextmanager
@@ -53,6 +72,18 @@ def temporary_module_entries(entries):
 
 
 class NotebookDeliveryTests(unittest.TestCase):
+    def test_notebook_source_strips_only_comments_and_preserves_ast(self):
+        source = ('"""Runtime documentation."""\n'
+                  '# A development comment\n'
+                  'value = "# remains a string"  # an inline comment\n'
+                  'sql = "SELECT 1 -- SQL payload stays unchanged"\n')
+        cleaned = build_notebooks.notebook_source(source)
+        self.assertEqual(comment_tokens(cleaned), [])
+        self.assertEqual(ast.dump(ast.parse(cleaned), include_attributes=False),
+                         ast.dump(ast.parse(source), include_attributes=False))
+        self.assertIn('# remains a string', cleaned)
+        self.assertIn('SQL payload stays unchanged', cleaned)
+
     def test_default_source_uses_embedded_raw_extractor_without_legacy_procedure_calls(self):
         source = next("".join(cell["source"]) for cell in notebook(FILENAMES[0])["cells"]
                       if cell["cell_type"] == "code" and "AUTOML_SETUP =" in "".join(cell["source"]))
@@ -70,8 +101,11 @@ class NotebookDeliveryTests(unittest.TestCase):
         for filename in FILENAMES:
             book = notebook(filename)
             self.assertEqual(book["nbformat"], 4)
-            configs.append("".join(book["cells"][1]["source"]))
-            helper = "".join(book["cells"][2]["source"])
+            self.assertTrue(all(cell["cell_type"] == "code" for cell in book["cells"]), filename)
+            config_cell, helper_cell, remaining = notebook_code_parts(book)
+            self.assertEqual((config_cell[0], helper_cell[0]), (0, 1), filename)
+            configs.append(config_cell[1])
+            helper = helper_cell[1]
             assignments = {node.targets[0].id: ast.literal_eval(node.value)
                            for node in ast.parse(helper).body
                            if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name)
@@ -84,12 +118,17 @@ class NotebookDeliveryTests(unittest.TestCase):
             paths.update(comparison=repo / "experiments" / "rigorous_transformer" / "comparison.py",
                          warehouse=repo / "experiments" / "temporal_selection" / "input_helpers.py")
             for name, path in paths.items():
-                self.assertEqual(sources[name], path.read_text(encoding="utf-8-sig"),
+                original = path.read_text(encoding="utf-8-sig")
+                self.assertEqual(sources[name], build_notebooks.notebook_source(original),
                                  "Stale embedded source; rebuild all notebooks: " + name)
+                self.assertEqual(ast.dump(ast.parse(sources[name]), include_attributes=False),
+                                 ast.dump(ast.parse(original), include_attributes=False),
+                                 "Source cleaning changed executable structure: " + name)
             self.assertEqual(hashlib.sha256(json.dumps(sources, sort_keys=True).encode()).hexdigest(),
                              assignments["EMBEDDED_SOURCE_SHA256"])
             source_maps.append(sources); hashes.append(assignments["IMPLEMENTATION_SHA256"])
             for name, source in sources.items():
+                self.assertEqual(comment_tokens(source), [], name)
                 parsed = ast.parse(source)
                 for node in ast.walk(parsed):
                     if isinstance(node, ast.ImportFrom):
@@ -97,10 +136,16 @@ class NotebookDeliveryTests(unittest.TestCase):
                     elif isinstance(node, ast.Import):
                         self.assertFalse(any(alias.name.startswith("experiments.") for alias in node.names), name)
             for cell in book["cells"]:
-                if cell["cell_type"] == "code":
-                    self.assertIsNone(cell["execution_count"])
-                    self.assertEqual(cell["outputs"], [])
-                    ast.parse("".join(cell["source"]))
+                self.assertIsNone(cell["execution_count"])
+                self.assertEqual(cell["outputs"], [])
+                source = "".join(cell["source"])
+                self.assertEqual(comment_tokens(source), [], filename)
+                for node in ast.walk(ast.parse(source)):
+                    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                        # Word boundaries allow required technical identifiers
+                        # such as client_universe; SQLite commit is unrelated.
+                        self.assertIsNone(re.search(r"\b(?:codex|claude|git|client|brian)\b", node.value, re.I),
+                                          filename + ": development narrative in a text constant")
         self.assertTrue(all(source == source_maps[0] for source in source_maps))
         self.assertEqual(len(set(hashes)), 1)
         self.assertEqual(len(set(configs)), 1)
@@ -143,12 +188,17 @@ class NotebookDeliveryTests(unittest.TestCase):
         fake_modules.update({"IPython": ipython, "IPython.display": display_module})
         store, displays, queried, extraction_calls = {}, [], [], []
         def save(table, artifacts):
+            artifacts = {k: v.read_bytes() if isinstance(v, Path) else v for k, v in artifacts.items()}
             if table in store and store[table] != artifacts:
                 raise ValueError("Immutable artifact replacement")
             store[table] = copy.deepcopy(artifacts)
-        def read(table, artifact_names):
+        def read(table, artifact_names, *, disk_names=(), output_dir=None):
             self.assertEqual(set(store[table]), set(artifact_names))
-            return copy.deepcopy(store[table])
+            result = copy.deepcopy(store[table])
+            for name in disk_names:
+                target = Path(output_dir) / name
+                target.write_bytes(result[name]); result[name] = target
+            return result
         def read_sf(suffix):
             queried.append(suffix)
             return tables[suffix]
@@ -168,6 +218,9 @@ class NotebookDeliveryTests(unittest.TestCase):
         config["date_policy"] = "month_end_history"
         config["raw_automl"] = dict(date_policy="month_end_history", chunk_size=5000, max_features=512)
         config['client_universe'] = dict(table='DB.SC.TAK861_TX_READY_PATIENT_UNIVERSE_DL',split_seed=42)
+        config['client_universe']['expected_population'] = dict(snapshots=96, patients=96, positives=48,
+            per_split={s: dict(snapshots=len(p), patients=p.PATIENT_ID.nunique(), positives=int(p.RESP.sum()))
+                       for s,p in meta.groupby('SPLIT')})
         raw_calls = []
         from experiments.automl_sequence import inputs
         req,_=inputs.make_requests(meta,date_policy='month_end_history')
@@ -189,10 +242,10 @@ class NotebookDeliveryTests(unittest.TestCase):
         last_namespace = None
         with temporary_module_entries(fake_modules), redirect_stdout(output):
             for filename in FILENAMES:
-                cells = notebook(filename)["cells"]
+                config_cell, helper_cell, remaining = notebook_code_parts(notebook(filename))
                 namespace = {"__name__": "__synthetic_notebook__", "spark": object(),
                              "sf_options_dl_poc": {"synthetic": True}}
-                config_source = "".join(cells[1]["source"])
+                config_source = config_cell[1]
                 with self.assertRaisesRegex(ValueError, "Enter your PAT"):
                     exec(compile(config_source, filename+":blank_pat", "exec"), namespace)
                 config_source = config_source.replace('"sfPassword": ""', '"sfPassword": "SYNTHETIC_NOT_A_CREDENTIAL"')
@@ -201,7 +254,7 @@ class NotebookDeliveryTests(unittest.TestCase):
                 self.assertNotIn('synthetic', namespace['sf_options_dl_poc'])
                 namespace["CONFIG"] = copy.deepcopy(config)
                 namespace["RUN_ID"] = "SYNTHETICNOTEBOOKS"
-                exec(compile("".join(cells[2]["source"]), filename+":embedded", "exec"), namespace)
+                exec(compile(helper_cell[1], filename+":embedded", "exec"), namespace)
                 namespace["display"] = lambda obj: displays.append(copy.deepcopy(obj))
                 wh, wf = namespace["wh"], namespace["wf"]
                 wh.read_sf = read_sf
@@ -213,9 +266,8 @@ class NotebookDeliveryTests(unittest.TestCase):
                 fc.resolve_source_contract=lambda *args,**kwargs: {'synthetic':True}
                 fc.build_source_frames=lambda *args,**kwargs: dict(tables,manifest={'synthetic_spark_aggregate':True},
                     cached_aggregates=types.SimpleNamespace(unpersist=lambda **kw:None))
-                for index, cell in enumerate(cells[3:], 3):
-                    if cell["cell_type"] == "code":
-                        exec(compile("".join(cell["source"]), filename+f":cell{index}", "exec"), namespace)
+                for index, source in remaining:
+                    exec(compile(source, filename+f":cell{index}", "exec"), namespace)
                 last_namespace = namespace
         self.assertEqual(queried, ["PATIENT_SPLIT", "FEATURE_MAP"])
         self.assertEqual(len(raw_calls), 1)

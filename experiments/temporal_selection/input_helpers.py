@@ -6,6 +6,9 @@ import json
 import math
 import re
 import tempfile
+import uuid
+from contextlib import contextmanager
+from itertools import islice
 from pathlib import Path
 
 import numpy as np
@@ -184,63 +187,256 @@ def load_inputs():
             "temporary_directory": temporary}
 
 
-def pack_artifacts(artifacts, chunk_size=50000):
-    rows = []
+@contextmanager
+def _blob_reader(blob):
+    """Bytes and caller-owned files share the same raw-byte hash contract."""
+    if isinstance(blob, Path):
+        with blob.open("rb") as stream:
+            yield stream
+    elif isinstance(blob, (bytes, bytearray, memoryview)):
+        # BytesIO copies its input; avoid it for already allocated blobs.
+        class Reader:
+            offset = 0
+            def read(self, size):
+                block = memoryview(blob)[self.offset:self.offset + size]
+                self.offset += len(block)
+                return block
+        yield Reader()
+    else:
+        raise TypeError("Artifact payload must be bytes or pathlib.Path")
+
+
+def artifact_signature(blob):
+    hasher, size = hashlib.sha256(), 0
+    with _blob_reader(blob) as stream:
+        while True:
+            block = stream.read(1024 * 1024)
+            if not block:
+                break
+            hasher.update(block)
+            size += len(block)
+    return size, hasher.hexdigest()
+
+
+def iter_artifact_rows(artifacts, chunk_size=50000, signatures=None):
+    """Same rows as the former packer, without whole-blob/base64/list copies."""
+    if not isinstance(chunk_size, int) or chunk_size < 1:
+        raise ValueError("chunk_size must be a positive integer")
     for name, blob in artifacts.items():
-        encoded = base64.b64encode(blob).decode("ascii")
-        pieces = [encoded[i:i + chunk_size] for i in range(0, len(encoded), chunk_size)] or [""]
-        digest = hashlib.sha256(blob).hexdigest()
-        rows.extend((name, i, len(pieces), len(blob), digest, piece)
-                    for i, piece in enumerate(pieces))
-    return rows
+        size, digest = signatures[name] if signatures is not None else artifact_signature(blob)
+        count = max(1, math.ceil((4 * ((size + 2) // 3)) / chunk_size))
+        # Encode multiples of three so concatenation equals one base64 encoding.
+        raw_size = max(3, (chunk_size // 4) * 3)
+        pending, index = "", 0
+        with _blob_reader(blob) as stream:
+            while True:
+                block = stream.read(raw_size)
+                if not block:
+                    break
+                pending += base64.b64encode(block).decode("ascii")
+                while len(pending) >= chunk_size:
+                    yield (name, index, count, size, digest, pending[:chunk_size])
+                    pending = pending[chunk_size:]
+                    index += 1
+        if pending or size == 0:
+            yield (name, index, count, size, digest, pending)
 
 
-def unpack_artifacts(rows, expected_names):
-    groups = {}
-    for row in rows:
-        name, i, count, size, digest, payload = tuple(row)
-        if any(value != int(value) for value in (i, count, size)):
-            raise ValueError("Nonintegral artifact chunk metadata.")
-        groups.setdefault(name, []).append((int(i), int(count), int(size), digest, payload))
-    if set(groups) != set(expected_names):
-        raise ValueError("Missing or unexpected saved artifacts.")
-    result = {}
-    for name, pieces in groups.items():
-        pieces.sort(key=lambda p: p[0])
-        count, size, digest = pieces[0][1:4]
-        if (count < 1 or size < 0 or len(pieces) != count
-                or [p[0] for p in pieces] != list(range(count))
-                or any(p[1:4] != (count, size, digest) for p in pieces)):
-            raise ValueError("Missing, duplicate or inconsistent artifact chunks.")
-        blob = base64.b64decode("".join(p[4] for p in pieces), validate=True)
-        if len(blob) != size or hashlib.sha256(blob).hexdigest() != digest:
-            raise ValueError("Artifact length/hash mismatch.")
-        result[name] = blob
-    return result
+def pack_artifacts(artifacts, chunk_size=50000):
+    """Compatibility helper for small callers; production writes use the iterator."""
+    return list(iter_artifact_rows(artifacts, chunk_size))
+
+
+def unpack_artifacts(rows, expected_names, *, disk_names=(), output_dir=None, ordered=False):
+    """Decode ordered chunks incrementally; optional large payloads remain on disk.
+
+    The default still accepts unordered small row collections. read_artifacts
+    supplies bounded, ordered chunks, so it never takes that sorting path.
+    """
+    names, disk_names = set(expected_names), set(disk_names)
+    if not disk_names <= names or (disk_names and output_dir is None):
+        raise ValueError("disk_names must be expected names and require output_dir")
+    if not ordered:
+        rows = sorted(rows, key=lambda row: (row[0], row[1]))
+    result, created, stream = {}, [], None
+    current, count, size, digest, next_index, actual_size, pending = None, 0, 0, None, 0, 0, ""
+
+    def finish():
+        nonlocal stream
+        if next_index != count or pending or actual_size != size or hasher.hexdigest() != digest:
+            raise ValueError("Missing, duplicate or inconsistent artifact chunks, or length/hash mismatch.")
+        if current in disk_names:
+            stream.close()
+            result[current] = path
+        else:
+            result[current] = stream.getvalue()
+            stream.close()
+        stream = None
+
+    try:
+        for row in rows:
+            name, i, row_count, row_size, row_digest, payload = tuple(row)
+            if any(value != int(value) for value in (i, row_count, row_size)):
+                raise ValueError("Nonintegral artifact chunk metadata.")
+            i, row_count, row_size = int(i), int(row_count), int(row_size)
+            if name != current:
+                if current is not None:
+                    finish()
+                if name not in names or name in result or row_count < 1 or row_size < 0:
+                    raise ValueError("Missing, duplicate or unexpected saved artifacts.")
+                current, count, size, digest = name, row_count, row_size, row_digest
+                next_index, actual_size, pending, hasher = 0, 0, "", hashlib.sha256()
+                if name in disk_names:
+                    directory = Path(output_dir)
+                    directory.mkdir(parents=True, exist_ok=True)
+                    # Artifact names never become local path components.
+                    path = directory / ("artifact_" + uuid.uuid4().hex)
+                    stream = path.open("xb")
+                    created.append(path)
+                else:
+                    stream = io.BytesIO()
+            if i != next_index or (row_count, row_size, row_digest) != (count, size, digest):
+                raise ValueError("Missing, duplicate or inconsistent artifact chunks.")
+            pending += payload
+            length = (len(pending) // 4) * 4
+            if length:
+                encoded, pending = pending[:length], pending[length:]
+                block = base64.b64decode(encoded, validate=True)
+                # Padding is legal only in the final chunk of an artifact.
+                if "=" in encoded and next_index != count - 1:
+                    raise ValueError("Unexpected base64 padding before final artifact chunk")
+                stream.write(block)
+                hasher.update(block)
+                actual_size += len(block)
+            next_index += 1
+        if current is not None:
+            finish()
+        if set(result) != names:
+            raise ValueError("Missing or unexpected saved artifacts.")
+        return result
+    except BaseException:
+        if stream is not None:
+            stream.close()
+        for path in created:
+            path.unlink(missing_ok=True)
+        raise
 
 
 ARTIFACT_COLUMNS = ["ARTIFACT_NAME", "CHUNK_INDEX", "CHUNK_COUNT", "BYTE_LENGTH", "SHA256", "PAYLOAD_BASE64"]
+ARTIFACT_BATCH_ROWS = 1024
 
 
-def read_artifacts(table, expected_names):
-    rows = (spark.read.format("snowflake").options(**sf_options_dl_poc)
-            .option("dbtable", table).load().select(*ARTIFACT_COLUMNS).collect())
-    return unpack_artifacts(rows, expected_names)
+def _checked_table(table):
+    if not isinstance(table, str) or not re.fullmatch(r"[A-Z][A-Z0-9_]*", table):
+        raise ValueError("Use uppercase letters, numbers and underscores in table names.")
+    return table
 
 
-def save_artifacts(table, artifacts):
-    # A matching existing result can be verified after an interrupted read-back.
+def _query_artifacts(query):
+    return (spark.read.format("snowflake").options(**sf_options_dl_poc)
+            .option("query", query).load())
+
+
+def _read_artifact_rows(table, expected_names, batch_rows=ARTIFACT_BATCH_ROWS):
+    """Bound each connector result, not just the Python iterator's buffer."""
+    table = _checked_table(table)
+    if not isinstance(batch_rows, int) or batch_rows < 1:
+        raise ValueError("batch_rows must be positive")
+    metadata = _query_artifacts(
+        f"SELECT ARTIFACT_NAME,CHUNK_COUNT,BYTE_LENGTH,SHA256,COUNT(*) AS ROW_COUNT FROM {table} "
+        "GROUP BY ARTIFACT_NAME,CHUNK_COUNT,BYTE_LENGTH,SHA256").limit(len(set(expected_names)) + 1).collect()
+    descriptions = {}
+    for row in metadata:
+        name, count, size, digest, actual_count = tuple(row)
+        if (name in descriptions or name not in expected_names
+                or any(value != int(value) for value in (count, size, actual_count))
+                or count < 1 or size < 0 or count != actual_count):
+            raise ValueError("Missing, duplicate or inconsistent artifact chunks.")
+        descriptions[name] = (int(count), int(size), digest)
+    if set(descriptions) != set(expected_names):
+        raise ValueError("Missing or unexpected saved artifacts.")
+    for name in sorted(descriptions):
+        count = descriptions[name][0]
+        quoted_name = "'" + str(name).replace("'", "''") + "'"
+        for start in range(0, count, batch_rows):
+            query = ("SELECT " + ",".join(ARTIFACT_COLUMNS) + f" FROM {table} "
+                f"WHERE ARTIFACT_NAME={quoted_name} AND CHUNK_INDEX >= {start} "
+                f"AND CHUNK_INDEX < {min(start + batch_rows, count)} ORDER BY CHUNK_INDEX")
+            # Connector partition order is not guaranteed by the pushed ORDER BY.
+            batch = _query_artifacts(query).limit(batch_rows + 1).collect()
+            yield from sorted(batch, key=lambda row: row[1])
+            del batch
+
+
+def read_artifacts(table, expected_names, *, disk_names=(), output_dir=None, batch_rows=ARTIFACT_BATCH_ROWS):
+    return unpack_artifacts(_read_artifact_rows(table, expected_names, batch_rows), expected_names,
+        disk_names=disk_names, output_dir=output_dir, ordered=True)
+
+
+def _verify_saved_artifacts(table, signatures, batch_rows=ARTIFACT_BATCH_ROWS):
+    with tempfile.TemporaryDirectory(prefix="dl_poc_artifact_verify_") as directory:
+        saved = read_artifacts(table, signatures, disk_names=signatures, output_dir=directory,
+                               batch_rows=batch_rows)
+        if any(artifact_signature(saved[name]) != signature for name, signature in signatures.items()):
+            raise ValueError("Saved artifact read-back differs from the completed run.")
+
+
+def _artifact_ddl(sql):
+    # Official connector utility, with a java.util.Map overload for Python.
+    # https://github.com/snowflakedb/spark-snowflake/blob/master/src/main/scala/net/snowflake/spark/snowflake/Utils.scala
+    spark._jvm.net.snowflake.spark.snowflake.Utils.runQuery(dict(sf_options_dl_poc), sql)
+
+
+def _has_artifact_jvm():
+    """Detect JVM availability before transferring any artifact payload."""
+    try:
+        return getattr(spark, "_jvm", None) is not None
+    except (AttributeError, NotImplementedError):
+        # Shared/serverless Spark Connect sessions can raise on this attribute.
+        return False
+
+
+def save_artifacts(table, artifacts, *, chunk_size=50000, batch_rows=ARTIFACT_BATCH_ROWS):
+    """Bounded writes with immutable, verified completed artifacts.
+
+    Classic Spark verifies a pending table before atomic rename. Without a JVM,
+    write directly using errorifexists then append. A failed direct transfer can
+    leave an incomplete final-name table: readers reject its counts/hash and a
+    retry fails closed, requiring a new RUN_ID. Neither mode overwrites a table.
+    """
+    table = _checked_table(table)
+    if not artifacts or not isinstance(batch_rows, int) or batch_rows < 1:
+        raise ValueError("Require artifacts and positive batch_rows")
+    signatures = {name: artifact_signature(blob) for name, blob in artifacts.items()}
     if table_exists(table):
-        if read_artifacts(table, artifacts) != artifacts:
-            raise FileExistsError("Destination contains different artifacts; choose a new RUN_ID.")
+        try:
+            _verify_saved_artifacts(table, signatures, batch_rows)
+        except ValueError as exc:
+            raise FileExistsError("Destination contains incomplete or different artifacts; choose a new RUN_ID.") from exc
         print(f"Existing artifacts verified: DSVC_TAKEDA_TA_PRIVATE.DS_ML.{table}")
         return
+    atomic_rename = _has_artifact_jvm()
+    staging = table + "__PENDING_" + uuid.uuid4().hex.upper() if atomic_rename else table
+    _checked_table(staging)
+    if not atomic_rename:
+        print("Artifact publication: JVM unavailable; direct immutable batches. "
+              "Interrupted uploads remain invalid and require a new RUN_ID.", flush=True)
     schema = ("ARTIFACT_NAME STRING, CHUNK_INDEX INT, CHUNK_COUNT INT, "
               "BYTE_LENGTH LONG, SHA256 STRING, PAYLOAD_BASE64 STRING")
-    frame = spark.createDataFrame(pack_artifacts(artifacts), schema=schema)
-    (frame.write.format("snowflake").options(**sf_options_dl_poc)
-     .option("dbtable", table).option("truncate_columns", "off")
-     .mode("errorifexists").save())
-    if read_artifacts(table, artifacts) != artifacts:
-        raise ValueError("Saved artifact read-back differs from the completed run.")
+    rows, first = iter_artifact_rows(artifacts, chunk_size, signatures), True
+    while True:
+        batch = list(islice(rows, batch_rows))
+        if not batch:
+            break
+        frame = spark.createDataFrame(batch, schema=schema)
+        (frame.write.format("snowflake").options(**sf_options_dl_poc)
+         .option("dbtable", staging).option("truncate_columns", "off")
+         .mode("errorifexists" if first else "append").save())
+        first = False
+        del frame, batch
+    _verify_saved_artifacts(staging, signatures, batch_rows)
+    if atomic_rename:
+        # Rename preserves the verified object/bytes; do not download it twice.
+        # RENAME fails rather than replacing another writer's completed stage.
+        _artifact_ddl(f"ALTER TABLE {staging} RENAME TO {table}")
     print(f"Saved and verified: DSVC_TAKEDA_TA_PRIVATE.DS_ML.{table}")

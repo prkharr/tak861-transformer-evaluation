@@ -9,6 +9,11 @@ import io
 import json
 import re
 import time
+import tempfile
+import shutil
+import zipfile
+import weakref
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -116,51 +121,109 @@ def save_inputs(run_prefix, data, panel_manifest, config, implementation_hash):
     if "X_count" in data:
         arrays["X_count"] = data["X_count"]
         arrays["count_mask"] = data["count_mask"]
-    arrays_blob = npz_bytes(arrays)
-    metadata_blob = metadata.to_csv(index=False).encode()
-    manifest = dict(version=1, implementation_hash=implementation_hash,
-                    configuration=plain(config), configuration_hash=digest(config),
-                    panel_manifest=panel_manifest, feature_names=data["feature_names"],
-                    feature_specs=data.get("feature_specs", panel_manifest["feature_specs"]),
-                    input_report=data.get("report", {}),
-                    array_sha256=hashlib.sha256(arrays_blob).hexdigest(),
-                    metadata_sha256=hashlib.sha256(metadata_blob).hexdigest(),
-                    count_contract=data.get("count_contract"),
-                    split_counts={s: int((metadata.SPLIT == s).sum()) for s in ("train", "validation", "test")},
-                    prediction_unit="patient_snapshot", private_row_level_artifacts=True)
-    if table_exists(run_prefix + "_INPUTS"):
-        previous = load_inputs(run_prefix, implementation_hash)["manifest"]
-        # Keep original extraction timing; rerun timing is not predictor identity.
-        def semantic(value):
-            value = json.loads(json_bytes(value))
-            value["panel_manifest"].pop("extraction_report", None)
-            return value
-        if semantic(previous) != semantic(manifest):
-            raise ValueError("Frozen input source/content/configuration changed; use a new RUN_ID")
-        return previous
-    save_artifacts(run_prefix + "_INPUTS", {"arrays.npz": arrays_blob,
-                   "metadata.csv": metadata_blob, "input_manifest.json": json_bytes(manifest)})
-    return manifest
+    with tempfile.TemporaryDirectory(prefix="tak861_inputs_write_") as directory:
+        arrays_blob = Path(directory) / "arrays.npz"
+        np.savez_compressed(arrays_blob, **arrays)
+        metadata_blob = metadata.to_csv(index=False).encode()
+        manifest = dict(version=1, implementation_hash=implementation_hash,
+                        configuration=plain(config), configuration_hash=digest(config),
+                        panel_manifest=panel_manifest, feature_names=data["feature_names"],
+                        feature_specs=data.get("feature_specs", panel_manifest["feature_specs"]),
+                        input_report=data.get("report", {}),
+                        array_sha256=file_sha256(arrays_blob),
+                        metadata_sha256=hashlib.sha256(metadata_blob).hexdigest(),
+                        count_contract=data.get("count_contract"),
+                        split_counts={s: int((metadata.SPLIT == s).sum()) for s in ("train", "validation", "test")},
+                        prediction_unit="patient_snapshot", private_row_level_artifacts=True)
+        if table_exists(run_prefix + "_INPUTS"):
+            previous_data = load_inputs(run_prefix, implementation_hash)
+            previous = previous_data["manifest"]
+            release_inputs(previous_data)
+            # Keep original extraction timing; rerun timing is not predictor identity.
+            def semantic(value):
+                value = json.loads(json_bytes(value))
+                value["panel_manifest"].pop("extraction_report", None)
+                return value
+            if semantic(previous) != semantic(manifest):
+                raise ValueError("Frozen input source/content/configuration changed; use a new RUN_ID")
+            return previous
+        save_artifacts(run_prefix + "_INPUTS", {"arrays.npz": arrays_blob,
+                       "metadata.csv": metadata_blob, "input_manifest.json": json_bytes(manifest)})
+        return manifest
+
+
+def file_sha256(path):
+    hasher = hashlib.sha256()
+    with Path(path).open('rb') as stream:
+        for block in iter(lambda: stream.read(1024*1024), b''):
+            hasher.update(block)
+    return hasher.hexdigest()
+
+
+class _InputDirectory:
+    """Close mappings before scratch cleanup, including notebook restarts/GC."""
+    def __init__(self):
+        self.name = tempfile.mkdtemp(prefix='tak861_inputs_read_')
+        self.mappings = []
+        self.finalizer = weakref.finalize(self, self._remove, self.name, self.mappings)
+
+    @staticmethod
+    def _remove(path, mappings):
+        for mapping in mappings:
+            mapping.close()
+        mappings.clear()
+        shutil.rmtree(path)
+
+    def cleanup(self):
+        self.finalizer()
+
+
+def release_inputs(data):
+    """Release file-backed raw arrays after a stage; never delete persisted inputs."""
+    temporary = data.pop('_input_directory', None)
+    if temporary is not None:
+        temporary.cleanup()
+    else:
+        for key in ('X_summary', 'X_sequence'):
+            inputs.release_array(data.get(key))
+        modeling.release_array(data.get('X_count'))
 
 
 def load_inputs(run_prefix, implementation_hash):
-    artifacts = read_artifacts(run_prefix + "_INPUTS", INPUT_NAMES)
-    manifest = json.loads(artifacts["input_manifest.json"])
-    if manifest["implementation_hash"] != implementation_hash:
-        raise ValueError("Inputs belong to a different notebook implementation; use a new RUN_ID")
-    for name, key in (("arrays.npz", "array_sha256"), ("metadata.csv", "metadata_sha256")):
-        if hashlib.sha256(artifacts[name]).hexdigest() != manifest[key]:
-            raise ValueError("Input content changed: " + name)
-    with np.load(io.BytesIO(artifacts["arrays.npz"]), allow_pickle=False) as saved:
-        data = {key: saved[key] for key in saved.files}
-    metadata = pd.read_csv(io.BytesIO(artifacts["metadata.csv"]), dtype={"PATIENT_ID": str}, keep_default_na=False)
-    metadata = assign_patient_split(metadata)
-    inputs.verify_fitting_scope(manifest["panel_manifest"]["contract"], metadata)
-    data.update(metadata=metadata, manifest=manifest, feature_names=manifest["feature_names"],
-                feature_specs=manifest["feature_specs"],
-                indices={s: np.flatnonzero(metadata.SPLIT.to_numpy() == s) for s in ("train", "validation", "test")})
-    _validate_input_arrays(data, metadata, manifest["feature_names"])
-    return data
+    temporary = _InputDirectory()
+    data = {}
+    try:
+        artifacts = read_artifacts(run_prefix + "_INPUTS", INPUT_NAMES,
+                                  disk_names={'arrays.npz'}, output_dir=temporary.name)
+        manifest = json.loads(artifacts["input_manifest.json"])
+        if manifest["implementation_hash"] != implementation_hash:
+            raise ValueError("Inputs belong to a different notebook implementation; use a new RUN_ID")
+        if (file_sha256(artifacts['arrays.npz']) != manifest['array_sha256'] or
+                hashlib.sha256(artifacts['metadata.csv']).hexdigest() != manifest['metadata_sha256']):
+            raise ValueError('Input content changed')
+        allowed = {'X_summary','X_sequence','X_count','summary_mask','sequence_mask','count_mask','y'}
+        with zipfile.ZipFile(artifacts['arrays.npz']) as archive:
+            for name in archive.namelist():
+                key = name[:-4] if name.endswith('.npy') else ''
+                if key not in allowed or key in data:
+                    raise ValueError('Unexpected or duplicate input array')
+                target = Path(temporary.name) / name
+                with archive.open(name) as source, target.open('wb') as dest:
+                    shutil.copyfileobj(source, dest, length=1024*1024)
+                data[key] = np.load(target, mmap_mode='r', allow_pickle=False)
+                temporary.mappings.append(data[key]._mmap)
+        metadata = pd.read_csv(io.BytesIO(artifacts["metadata.csv"]), dtype={"PATIENT_ID": str}, keep_default_na=False)
+        metadata = assign_patient_split(metadata)
+        inputs.verify_fitting_scope(manifest["panel_manifest"]["contract"], metadata)
+        data.update(metadata=metadata, manifest=manifest, feature_names=manifest["feature_names"],
+                    feature_specs=manifest["feature_specs"], _input_directory=temporary,
+                    indices={s: np.flatnonzero(metadata.SPLIT.to_numpy() == s) for s in ("train", "validation", "test")})
+        _validate_input_arrays(data, metadata, manifest["feature_names"])
+        return data
+    except BaseException:
+        data['_input_directory'] = temporary
+        release_inputs(data)
+        raise
 
 
 def _validate_input_arrays(data, metadata, feature_names):
@@ -171,10 +234,13 @@ def _validate_input_arrays(data, metadata, feature_names):
         x, valid = np.asarray(data[value]), np.asarray(data[mask])
         if x.shape != (n, steps, f) or valid.shape != (n, steps) or valid.dtype != bool:
             raise ValueError("Invalid AutoML array/mask shape: " + value)
-        if np.isinf(x).any() or not np.isnan(x[~valid]).all():
-            raise ValueError("Invalid feature values or missing-history padding")
-    if not np.array_equal(data["X_summary"], data["X_sequence"][:, :1], equal_nan=True):
-        raise ValueError("Summary inputs differ from historical current snapshot")
+        for start in range(0,n,256):
+            block, mask = x[start:start+256], valid[start:start+256]
+            if np.isinf(block).any() or not np.isnan(block[~mask]).all():
+                raise ValueError("Invalid feature values or missing-history padding")
+    for start in range(0,n,256):
+        if not np.array_equal(data["X_summary"][start:start+256], data["X_sequence"][start:start+256, :1], equal_nan=True):
+            raise ValueError("Summary inputs differ from historical current snapshot")
     if not np.array_equal(data["summary_mask"], data["sequence_mask"][:, :1]):
         raise ValueError("Invalid current snapshot observation mask")
     if np.asarray(data["y"]).shape != (n,) or not np.array_equal(data["y"], metadata.RESP.to_numpy()):
@@ -182,8 +248,11 @@ def _validate_input_arrays(data, metadata, feature_names):
     if "X_count" in data:
         if np.asarray(data["X_count"]).shape != (n, 12, 1028) or np.asarray(data["count_mask"]).shape != (n, 12):
             raise ValueError("Count reference shape mismatch")
-        if np.asarray(data["count_mask"]).dtype != bool or np.isinf(data["X_count"]).any():
+        if np.asarray(data["count_mask"]).dtype != bool:
             raise ValueError("Invalid count mask or nonfinite count values")
+        for start in range(0,n,256):
+            if not np.isfinite(data["X_count"][start:start+256]).all():
+                raise ValueError("Invalid count mask or nonfinite count values")
 
 
 def attach_count_reference(data, values, metadata, contract, valid=None):
@@ -196,7 +265,7 @@ def attach_count_reference(data, values, metadata, contract, valid=None):
             ("source_id", "source_version", "content_sha256", "feature_names", "provenance_status",
              "orientation", "date_policy", "mask_kind", "mask_sha256", "asof_grid_sha256")):
         raise ValueError("Count reuse needs source/version/content, calendar, explicit mask and provenance fingerprints")
-    values = np.asarray(values)
+    values = np.asanyarray(values)
     names = contract["feature_names"]
     if values.ndim != 3 or values.shape != (len(metadata), 12, 1028) or len(names) != 1028 or len(set(names)) != 1028:
         raise ValueError("Count reference must preserve the complete 1,028 candidate universe")
@@ -233,7 +302,10 @@ def attach_count_reference(data, values, metadata, contract, valid=None):
     if joined._row.isna().any() or not joined.RESP.eq(joined.RESP_cached).all() or len(old) != len(target):
         raise ValueError("Count cache cohort/label mismatch")
     order = joined._row.to_numpy(dtype=int)
-    data["X_count"] = values[order].astype(np.float32)
+    if values.dtype == np.float32 and np.array_equal(order,np.arange(len(values))):
+        data["X_count"] = values  # Keep the original read-only memmap, no cohort-sized copy.
+    else:
+        data["X_count"] = modeling.take_rows(values,order,dtype=np.float32)
     data["count_mask"] = valid[order].copy()
     data["count_contract"] = dict(contract, coverage_note="Position mask semantics are explicit; a saved row does not establish clinical observation coverage")
     return data
@@ -270,15 +342,15 @@ def prepare_run(data, run_prefix, config, implementation_hash):
     if config.get("feature_kinds", declared_kinds) != declared_kinds:
         raise ValueError("Model preprocessing kinds differ from the recovered source feature contract")
     prep = {"automl": modeling.prepare_features(
-        data["X_summary"][ti], data["X_sequence"][ti], data["y"][ti], groups,
-        data["feature_names"], valid_train=data["sequence_mask"][ti],
+        data["X_summary"], data["X_sequence"], data["y"][ti], groups,
+        data["feature_names"], valid_train=data["sequence_mask"], row_indices=ti,
         feature_kinds=declared_kinds, config=selection_config)}
     arms = {"SUMMARY": dict(family="transformer", input="X_summary", mask="summary_mask", preparation="automl"),
             "SEQUENCE": dict(family="transformer", input="X_sequence", mask="sequence_mask", preparation="automl")}
     if "X_count" in data:
-        count = data["X_count"][ti]
+        count = data["X_count"]
         prep["count"] = modeling.prepare_features(count[:, :1], count, data["y"][ti], groups,
-            data["manifest"]["count_contract"]["feature_names"], valid_train=data["count_mask"][ti],
+            data["manifest"]["count_contract"]["feature_names"], valid_train=data["count_mask"], row_indices=ti,
             feature_kinds=["count"] * count.shape[-1], config=selection_config)
         arms["COUNT"] = dict(family="transformer", input="X_count", mask="count_mask", preparation="count")
         arms["STATIC_FUSION"] = dict(arms["COUNT"], static_input="X_summary", static_mask="summary_mask",
@@ -304,7 +376,9 @@ def prepare_run(data, run_prefix, config, implementation_hash):
                     top_fractions=sorted({.1, .2, .3, primary_fraction}),
                     test_evaluation_ordinal=None if 'client_universe' in config else 3,
                     legacy_test_evaluations=2,
-                    test_scope=("Revised universe includes previously inspected TEST patients and possibly new patients; not an untouched holdout"
+                    test_scope=("Original frozen cohort; previously inspected TEST patients, not an untouched holdout"
+                                if config.get('client_universe',{}).get('table_name')=='TAK861_TX_READY_V63_MODEL_DATA' else
+                                "Revised universe includes previously inspected TEST patients and possibly new patients; not an untouched holdout"
                                 if 'client_universe' in config else "retrospective; this cohort already evaluated twice"),
                     partial_seed_rule="all completed runs shown; incomplete protocol cannot be locked",
                     comparison_scope="matched count control versus static and historical AutoML augmentation; descriptive development evidence")
@@ -335,26 +409,44 @@ def unpack_run(artifacts, identity):
                 val_scores=bytes_array(artifacts["validation.npy"]))
 
 
-def arm_arrays(data, prep, arm, split):
-    idx = data["indices"][split]
-    valid = data[arm["mask"]][idx]
-    x = modeling.transform_inputs(data[arm["input"]][idx], prep[arm["preparation"]], valid=valid)
-    static = None
-    if "static_input" in arm:
-        static_mask = data[arm["static_mask"]][idx]
-        static = modeling.transform_inputs(data[arm["static_input"]][idx], prep[arm["static_preparation"]],
-                                          valid=static_mask)[:, 0]
-        static = np.concatenate([static, static_mask.astype(np.float32)], axis=-1)
-    if "temporal_input" in arm:
-        temporal_mask = data[arm["temporal_mask"]][idx]
-        temporal = modeling.transform_inputs(data[arm["temporal_input"]][idx], prep[arm["temporal_preparation"]],
-                                             valid=temporal_mask)
-        if temporal.shape[:2] != x.shape[:2]:
-            raise ValueError("Count and AutoML monthly shapes disagree")
-        # Missing AutoML history does not mask an otherwise valid count token.
-        # The indicator distinguishes missing history from a transformed zero.
-        x = np.concatenate([x, temporal, temporal_mask[:, :, None].astype(np.float32)], axis=-1)
-    return x, valid, static
+def arm_arrays(data, prep, arm, split, subset=None):
+    idx = data['indices'][split]
+    if subset is not None:
+        idx = idx[subset]
+    valid = data[arm['mask']][idx]
+    x = static = transformed = temporal = merged = None
+    try:
+        x = modeling.transform_inputs(data[arm['input']], prep[arm['preparation']],
+                                      valid=data[arm['mask']], row_indices=idx)
+        if 'static_input' in arm:
+            mask = data[arm['static_mask']][idx]
+            transformed = modeling.transform_inputs(data[arm['static_input']], prep[arm['static_preparation']],
+                                                    valid=data[arm['static_mask']], row_indices=idx)
+            static = modeling.allocate_array((len(idx), transformed.shape[-1]+1), np.float32)
+            for start in range(0,len(idx),256):
+                static[start:start+256,:-1] = transformed[start:start+256,0]
+                static[start:start+256,-1:] = mask[start:start+256]
+            modeling.release_array(transformed)
+            transformed = None
+        if 'temporal_input' in arm:
+            mask = data[arm['temporal_mask']][idx]
+            temporal = modeling.transform_inputs(data[arm['temporal_input']], prep[arm['temporal_preparation']],
+                                                 valid=data[arm['temporal_mask']], row_indices=idx)
+            if temporal.shape[:2] != x.shape[:2]:
+                raise ValueError('Count and AutoML monthly shapes disagree')
+            merged = modeling.allocate_array((*x.shape[:2], x.shape[-1]+temporal.shape[-1]+1),np.float32)
+            k=x.shape[-1]
+            for start in range(0,len(idx),256):
+                merged[start:start+256,:,:k] = x[start:start+256]
+                merged[start:start+256,:,k:-1] = temporal[start:start+256]
+                merged[start:start+256,:,-1] = mask[start:start+256]
+            modeling.release_array(x);modeling.release_array(temporal)
+            x,merged,temporal = merged,None,None
+        return x,valid,static
+    except BaseException:
+        for value in (x,static,transformed,temporal,merged):
+            modeling.release_array(value)
+        raise
 
 
 def train_registered(data, prep, protocol, run_prefix):
@@ -364,28 +456,34 @@ def train_registered(data, prep, protocol, run_prefix):
     ti, vi = data["indices"]["train"], data["indices"]["validation"]
     results = {}
     for name, arm in protocol["arms"].items():
-        train, train_mask, static_train = arm_arrays(data, prep, arm, "train")
-        validation, val_mask, static_val = arm_arrays(data, prep, arm, "validation")
-        results[name] = []
-        for seed in protocol["seeds"]:
-            identity = dict(protocol_hash=digest(protocol), arm=name, seed=seed)
-            table = run_prefix + "_" + name + "_S" + str(seed)
-            if not table_exists(table):
-                trainer = modeling.train_encoder if arm["family"] == "transformer" else modeling.train_lightgbm
-                run = trainer(train, data["y"][ti], groups[ti], validation, data["y"][vi],
-                              valid_train=train_mask, valid_val=val_mask,
-                              static_train=static_train, static_val=static_val,
-                              groups_val=groups[vi],
-                              config=protocol["model_config"], seed=seed)
-                save_artifacts(table, pack_run(run, identity))
-            result = unpack_run(read_artifacts(table, RUN_NAMES), identity)
-            if len(result["train_scores"]) != len(ti) or len(result["val_scores"]) != len(vi):
-                raise ValueError("Prediction length does not match frozen split")
-            results[name].append(result)
-            print(name, "seed", seed, "completed; validation lift",
-                  modeling.lift_at_fraction(data["y"][vi], result["val_scores"], protocol["primary_lift_fraction"]),
-                  "secondary AP", comparison.binary_metrics(data["y"][vi], result["val_scores"])["average_precision"])
-        del train, validation
+        train = validation = static_train = static_val = None
+        try:
+            train, train_mask, static_train = arm_arrays(data, prep, arm, "train")
+            validation, val_mask, static_val = arm_arrays(data, prep, arm, "validation")
+            results[name] = []
+            for seed in protocol["seeds"]:
+                identity = dict(protocol_hash=digest(protocol), arm=name, seed=seed)
+                table = run_prefix + "_" + name + "_S" + str(seed)
+                if not table_exists(table):
+                    if arm["family"] != "transformer":
+                        raise ValueError("Only Transformer arms are registered; LightGBM remains deferred")
+                    trainer = modeling.train_encoder
+                    run = trainer(train, data["y"][ti], groups[ti], validation, data["y"][vi],
+                                  valid_train=train_mask, valid_val=val_mask,
+                                  static_train=static_train, static_val=static_val,
+                                  groups_val=groups[vi],
+                                  config=protocol["model_config"], seed=seed)
+                    save_artifacts(table, pack_run(run, identity))
+                result = unpack_run(read_artifacts(table, RUN_NAMES), identity)
+                if len(result["train_scores"]) != len(ti) or len(result["val_scores"]) != len(vi):
+                    raise ValueError("Prediction length does not match frozen split")
+                results[name].append(result)
+                print(name, "seed", seed, "completed; validation lift",
+                      modeling.lift_at_fraction(data["y"][vi], result["val_scores"], protocol["primary_lift_fraction"]),
+                      "secondary AP", comparison.binary_metrics(data["y"][vi], result["val_scores"])["average_precision"])
+        finally:
+            for array in (train,validation,static_train,static_val):
+                modeling.release_array(array)
     return results
 
 
@@ -501,9 +599,14 @@ def compare_run(data, prep, protocol, results, lock, run_prefix, *, evaluate_tes
             raise ValueError("Final fitted model changed")
         if evaluate_test:
             x, valid, static = arm_arrays(data, prep, arm, "test")
-            predict = modeling.predict_encoder if arm["family"] == "transformer" else modeling.predict_lightgbm
-            scores[name] = np.mean([predict(r, x, valid=valid, static=static) for r in runs], axis=0)
-            del x
+            try:
+                if arm["family"] != "transformer":
+                    raise ValueError("Only Transformer arms are registered; LightGBM remains deferred")
+                predict = modeling.predict_encoder
+                scores[name] = np.mean([predict(r, x, valid=valid, static=static) for r in runs], axis=0)
+            finally:
+                modeling.release_array(x)
+                modeling.release_array(static)
         else:
             scores[name] = np.mean([r["val_scores"] for r in runs], axis=0)
         metrics[name] = comparison.binary_metrics(data["y"][idx], scores[name], lock["models"][name]["threshold"],
@@ -538,7 +641,7 @@ def compare_run(data, prep, protocol, results, lock, run_prefix, *, evaluate_tes
                   limitations=["Validation is development evidence, not independent confirmation" if not evaluate_test else protocol["test_scope"],
                     "Bootstrap conditions on fitted predictions; excludes training/search uncertainty",
                     "Validation intervals condition on validation-selected checkpoints and are optimistic development evidence",
-                    "Revised-universe prevalence differs; old absolute lift is not a like-for-like comparator",
+                    "Cohort and source-vintage comparability must be verified before comparing absolute lift with prior runs",
                     "Unadjusted intervals across fixed contrasts; no multiplicity-controlled superiority claim",
                     "Augmentation changes input width/capacity as reported; no matched zero-input capacity ablation",
                     "Primary capacity was fixed before fitting; other capacity points are secondary, not selected from TEST",

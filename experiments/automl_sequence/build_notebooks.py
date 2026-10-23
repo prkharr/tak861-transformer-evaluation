@@ -1,13 +1,28 @@
 """Build the five self-contained notebooks for the two AutoML add-on experiments."""
 import ast
 import hashlib
+import io
 import json
+import tokenize
 from pathlib import Path
 from textwrap import dedent
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 DEST = REPO / "notebooks" / "AutoML Sequential Features"
+
+
+def notebook_source(text):
+    lines = text.splitlines(keepends=True)
+    for token in reversed(list(tokenize.generate_tokens(io.StringIO(text).readline))):
+        if token.type == tokenize.COMMENT:
+            row, start = token.start
+            end = token.end[1]
+            lines[row-1] = lines[row-1][:start] + lines[row-1][end:]
+    result = "".join(lines)
+    if ast.dump(ast.parse(result)) != ast.dump(ast.parse(text)):
+        raise ValueError("Notebook presentation cleanup changed executable semantics")
+    return result
 
 
 def md(text):
@@ -25,10 +40,11 @@ def build():
                for n in ("inputs", "count_loader", "modeling", "workflow", "reliance", "source_recovery", "raw_automl", "fresh_counts", "client_universe")}
     sources["comparison"] = (REPO / "experiments/rigorous_transformer/comparison.py").read_text(encoding="utf-8-sig")
     sources["warehouse"] = (REPO / "experiments/temporal_selection/input_helpers.py").read_text(encoding="utf-8-sig")
+    sources = {name: notebook_source(source) for name, source in sources.items()}
     source_hash = hashlib.sha256(json.dumps(sources, sort_keys=True).encode()).hexdigest()
     implementation = hashlib.sha256((source_hash + Path(__file__).read_text(encoding="utf-8")).encode()).hexdigest()
     config = code('''
-    import os
+    import os, tempfile
     # Enter your PAT locally in each notebook before running this cell.
     # Keep the PAT out of Git and shared notebook exports. Do not print this dictionary.
     sf_options = {
@@ -42,11 +58,26 @@ def build():
     }
     if not sf_options["sfPassword"].strip():
         raise ValueError("Enter your PAT in sf_options['sfPassword'] in this notebook's first code cell.")
+    # Local ephemeral scratch, never DBFS/object storage, for memory-mapped arrays.
+    # Override this path with a verified large local volume if /local_disk0 is unavailable.
+    SCRATCH_DIRECTORY = ("/local_disk0/tmp/tak861_automl" if os.path.isdir("/local_disk0")
+                         else os.environ.get("TMPDIR", tempfile.gettempdir()))
+    os.makedirs(SCRATCH_DIRECTORY, exist_ok=True)
+    os.environ["TMPDIR"] = SCRATCH_DIRECTORY
+    tempfile.tempdir = SCRATCH_DIRECTORY
+    with tempfile.TemporaryFile(dir=SCRATCH_DIRECTORY) as scratch_probe:
+        scratch_probe.write(b"scratch-write-check")
     os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
-    RUN_ID = "R20261016A"  # Brian's revised universe; never reuse the old-cohort run identity.
+    RUN_ID = "R20261023_OLD_A"  # Fresh implementation identity; do not overwrite earlier artifacts.
     SOURCE_PREFIX = "TAK861_TX_READY_V63_DL_POC"
     CONFIG = {
-        "client_universe": {"table": None, "split_seed": 42, "max_missing_feature_fraction": .10,
+        "client_universe": {"table": "DSVC_TAKEDA_TA_PRIVATE.DS_ML.TAK861_TX_READY_V63_MODEL_DATA",
+                            "table_name": "TAK861_TX_READY_V63_MODEL_DATA",
+                            "expected_population": {"snapshots": 23151, "patients": 12447, "positives": 1345,
+                                "per_split": {"train": {"snapshots": 16256, "patients": 8712, "positives": 941},
+                                              "validation": {"snapshots": 3481, "patients": 1867, "positives": 202},
+                                              "test": {"snapshots": 3414, "patients": 1868, "positives": 202}}},
+                            "split_seed": 42, "max_missing_feature_fraction": .10,
                             "sources": {}, "common_scope": None, "family_column": None},
         "date_policy": "month_end_history", "seeds": [42, 142, 242],
         "require_count_reference": True, "include_automl_only_controls": False,
@@ -87,8 +118,8 @@ def build():
     rel = modules["reliance"]
     recovery = modules["source_recovery"]
     raw = modules["raw_automl"]
-    client = modules["client_universe"]
-    client.inputs, client.fresh_counts, client.count_loader = inp, modules["fresh_counts"], cl
+    population = modules["client_universe"]
+    population.inputs, population.fresh_counts, population.count_loader = inp, modules["fresh_counts"], cl
     raw.inputs = inp
     wf.inputs, wf.modeling, wf.comparison, cl.inputs = inp, mdl, cmp, inp
     wh.spark, wh.sf_options_dl_poc, wh.PREFIX = spark, sf_options_dl_poc, SOURCE_PREFIX
@@ -104,7 +135,24 @@ def build():
     def aggregate(frame, n=40):
         # Only feature descriptions, aggregate counts and metrics are allowed here.
         display(frame.head(n))
+    def memory_receipt(stage):
+        # Aggregate process telemetry only; JVM/executor memory is not Python RSS.
+        import shutil, tempfile
+        receipt = {"stage": stage, "scratch_directory": tempfile.gettempdir(),
+                   "scratch_free_bytes": shutil.disk_usage(tempfile.gettempdir()).free}
+        try:
+            import psutil
+            receipt["python_rss_bytes"] = psutil.Process().memory_info().rss
+        except ImportError:
+            receipt["python_rss_bytes"] = None
+        try:
+            import resource
+            receipt["python_lifetime_peak_rss_bytes"] = int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * (1 if sys.platform == "darwin" else 1024))
+        except ImportError:
+            receipt["python_lifetime_peak_rss_bytes"] = None
+        print("Memory receipt:", json.dumps(receipt, sort_keys=True))
     print("Run:", RUN_ID, "Implementation:", IMPLEMENTATION_SHA256)
+    memory_receipt("notebook_start")
     ''')
     header = """
     The four-stage modeling pipeline is followed by a fifth comparison notebook.
@@ -112,8 +160,9 @@ def build():
     TEMPORAL_FUSION adds genuine historical AutoML values at all 12 aligned steps.
     All three use the same cohort, labels, patient splits, count selection and seed list.
     This bounded experiment does not repeat the former 84-fit search or reuse its fitted models.
-    Saved raw count tables may be reused after content/order/cohort/calendar checks.
-    Historical construction/availability limitations remain visible; reuse is not a leakage certificate.
+    The configured population is the original frozen cohort. Only its keys/labels, previous
+    dictionary and patient membership are read; counts and AutoML features are freshly extracted.
+    Historical construction/availability limitations remain visible.
     Lift is the primary objective. Top 10% is the declared default operating capacity;
     top 20% and 30% are secondary. Fix this choice before training, not after viewing results.
     The prediction unit is a patient snapshot; capacity is not a unique-patient outreach count.
@@ -157,12 +206,13 @@ def build():
         REUSE_SAVED_INPUTS = wh.table_exists(RUN_PREFIX+"_INPUTS")
         '''), md('''
         ## Reuse and alignment
-        Resolve Brian's TAK861_TX_READY_PATIENT_UNIVERSE_DL using exact-name metadata;
-        set CONFIG['client_universe']['table'] only if multiple visible schemas require disambiguation.
+        Use the original cohort's configured MODEL_DATA table for PATIENT_ID, END_DT and RESP only.
+        Assert the independently recorded population and split counts in CONFIG before claim extraction.
+        The revised TAK861_TX_READY_PATIENT_UNIVERSE_DL table is reserved for a later cohort configuration.
         Read the old FEATURE_MAP and PATIENT_SPLIT for dictionary and patient membership only.
-        Rebuild all counts from raw claims for the new universe; do not read old SNAPSHOTS or TENSOR_MONTHLY.
+        Rebuild all counts from raw claims for this universe; do not read old SNAPSHOTS or TENSOR_MONTHLY.
         Preserve all 1,028 candidates and known patient partitions; assign new patients by a seeded hash.
-        Audit added/removed snapshots and positive snapshots/patients; do not assume the reported 2.5x ratio.
+        Audit added/removed snapshots and positive snapshots/patients. This original-cohort run must match exactly.
         A changed RESP on a shared key stops execution for producer-rule review.
         No earlier checkpoint, metric or training-history table is a runtime dependency. Count time step zero is the partial
         current month through END_DT; older steps are complete calendar months. AutoML as-of
@@ -174,13 +224,16 @@ def build():
         it does not isolate a pure temporal-architecture advantage.
         '''), code('''
         started = time.perf_counter()
+        if "data" in globals():
+            wf.release_inputs(data)
         if "counts" in globals():
             cl.release_count_inputs(counts)
         if REUSE_SAVED_INPUTS:
             data = load_stage()
             print("Verified and reused this run's frozen tensors; no source extraction repeated.")
         else:
-            counts = client.load_client_counts(spark, read_query, wh.read_sf, CONFIG["client_universe"])
+            counts = population.load_client_counts(spark, read_query, wh.read_sf, CONFIG["client_universe"])
+            memory_receipt("fresh_counts_complete")
             metadata = wf.assign_patient_split(counts["metadata"])
             aggregate(pd.DataFrame([counts["contract"]["client_universe_audit"]]))
             aggregate(pd.DataFrame(counts["contract"]["client_universe_audit"]["population_by_split"]))
@@ -193,6 +246,7 @@ def build():
             print("Count provenance:", counts["contract"]["provenance_status"])
             if AUTOML_SETUP is None:
                 AUTOML_SETUP = raw.build_raw_automl_inputs(read_query, metadata, source_config=CONFIG["raw_automl"])
+                memory_receipt("raw_automl_panel_complete")
                 aggregate(pd.DataFrame([{k: v for k, v in AUTOML_SETUP["receipt"].items() if np.isscalar(v) or v is None}]))
             feature_specs = inp.validate_feature_specs(AUTOML_SETUP["feature_specs"])
             source_contract = inp.verify_fitting_scope(AUTOML_SETUP["contract"], metadata)
@@ -210,17 +264,26 @@ def build():
             if AUTOML_SETUP.get("receipt"):
                 panel_manifest["raw_extraction_receipt"] = AUTOML_SETUP["receipt"]
             data = inp.assemble_inputs(metadata, panel, feature_specs, date_policy=CONFIG["date_policy"])
+            memory_receipt("automl_tensors_complete")
             data = wf.attach_count_reference(data, counts["X"], counts["metadata"], counts["contract"], valid=counts["valid"])
-            data["report"]["source_activity_alignment"] = client.check_activity_alignment(data)
+            data["report"]["source_activity_alignment"] = population.check_activity_alignment(data)
             data["manifest"] = wf.save_inputs(RUN_PREFIX, data, panel_manifest, CONFIG, IMPLEMENTATION_SHA256)
+            memory_receipt("inputs_persisted")
             aggregate(pd.DataFrame([data["report"], panel_manifest["extraction_report"]]))
-            cl.release_count_inputs(counts)
-            del counts, panel
+            if isinstance(panel, inp.DiskPanel):
+                panel.close()
+            AUTOML_SETUP = None
+            del panel
         print("Summary tensor:", data["X_summary"].shape, "Historical tensor:", data["X_sequence"].shape,
               "Count tensor:", data["X_count"].shape)
         # Full row-level values remain in the private artifact store; never display them.
         print("Notebook 01 complete in seconds:", round(time.perf_counter()-started, 2))
+        wf.release_inputs(data)
+        if "counts" in globals():
+            cl.release_count_inputs(counts)
+            del counts
         del data
+        memory_receipt("notebook_01_released")
         '''), md("**Output:** immutable run INPUTS artifact containing tensors, exact feature order, cohort/splits, source contracts and content hashes. No model or performance result has been produced in this notebook.")]
     notebooks["02_patient_level_split_AutoML.ipynb"] = [md("# 02 · Frozen splits, feature diagnostics and selection\n" + header), config, helper,
         md('''
@@ -241,6 +304,7 @@ def build():
         # Source semantic kinds come from the stored source contract, not feature-name guesses.
         preparation_config = dict(CONFIG, feature_kinds=[s["kind"] for s in data["feature_specs"]])
         prep, protocol = wf.prepare_run(data, RUN_PREFIX, preparation_config, IMPLEMENTATION_SHA256)
+        memory_receipt("preparation_complete")
         rows = []
         for family, p in prep.items():
             rows.append({"universe": family, "raw_candidates": len(p["transform"]["feature_names"]),
@@ -276,6 +340,9 @@ def build():
         print("Registered arms:", list(protocol["arms"]), "Seeds:", protocol["seeds"])
         print("Protocol hash:", wf.digest(protocol))
         print("No TEST distribution or prediction was used for selection.")
+        wf.release_inputs(data)
+        del data
+        memory_receipt("notebook_02_released")
         ''')]
     notebooks["03_transformer_training_AutoML.ipynb"] = [md("# 03 · Matched Transformer fits\n" + header), config, helper,
         md('''
@@ -293,6 +360,7 @@ def build():
         saved = wh.read_artifacts(RUN_PREFIX+"_PREPARATION", wf.PREP_NAMES)
         prep, protocol = json.loads(saved["preparation.json"]), json.loads(saved["protocol.json"])
         results = wf.train_registered(data, prep, protocol, RUN_PREFIX)
+        memory_receipt("all_training_complete")
         rows = []
         for arm, runs in results.items():
             for r in runs:
@@ -306,6 +374,9 @@ def build():
                     seconds=s["wall_seconds"]))
         aggregate(pd.DataFrame(rows))
         print("All registered fits saved. No TEST predictions computed.")
+        wf.release_inputs(data)
+        del data
+        memory_receipt("notebook_03_released")
         ''')]
     notebooks["04_transformer_evaluation_AutoML.ipynb"] = [md("# 04 · Validation robustness and predictor lock\n" + header), config, helper,
         code('''
@@ -345,11 +416,14 @@ def build():
         '''), code('''
         # Descriptive stability diagnostics; no selection or TEST access.
         ti, vi = data["indices"]["train"], data["indices"]["validation"]
-        stability = mdl.distribution_diagnostics(
-            mdl.transform_inputs(data["X_summary"][ti], prep["automl"], valid=data["summary_mask"][ti]),
-            mdl.transform_inputs(data["X_summary"][vi], prep["automl"], valid=data["summary_mask"][vi]), prep["automl"]["selected_names"],
+        summary_train = mdl.transform_inputs(data["X_summary"], prep["automl"], valid=data["summary_mask"], row_indices=ti)
+        summary_validation = mdl.transform_inputs(data["X_summary"], prep["automl"], valid=data["summary_mask"], row_indices=vi)
+        stability = mdl.distribution_diagnostics(summary_train, summary_validation, prep["automl"]["selected_names"],
             valid_train=data["summary_mask"][ti], valid_validation=data["summary_mask"][vi])
         aggregate(pd.DataFrame(stability), 1100)
+        mdl.release_array(summary_train)
+        mdl.release_array(summary_validation)
+        del summary_train, summary_validation
         '''), md('''
         ## Does model reliance follow feature ranking?
         After freezing the predictors, permute top/middle/bottom TRAIN-rank groups on
@@ -379,6 +453,9 @@ def build():
             aggregate(pd.DataFrame(reliance_report["rows"]), 200)
         else:
             print("Reliance diagnostic skipped by explicit setting; no rank-versus-reliance conclusion.")
+        wf.release_inputs(data)
+        del data
+        memory_receipt("notebook_04_released")
         ''')]
     notebooks["05_model_comparison_AutoML.ipynb"] = [md("# 05 · Incremental value and final comparison\n" + header), config, helper,
         md('''
@@ -390,9 +467,9 @@ def build():
         Validation intervals are descriptive and selection-conditioned: the same validation
         labels choose checkpoints. They are not unbiased held-out improvement estimates.
         They condition on the fitted predictors and do not include model-selection uncertainty.
-        Legacy TEST patients were previously evaluated twice. This revised universe can add
-        snapshots or patients, so it has no directly comparable evaluation ordinal and is
-        not an untouched independent holdout or OOT result.
+        Original TEST patients were previously evaluated twice. They remain a retrospective
+        evaluation population. A later configured cohort may add patients under the same
+        split rule; neither configuration is an untouched independent holdout or OOT result.
         Default to validation for today's development comparison. Freeze the complete protocol,
         models and thresholds before an explicitly requested final TEST pass; reruns read the
         identical persisted report. Do not change models after inspecting TEST outcomes.
@@ -446,8 +523,8 @@ def build():
         calibration, secondary AP/AUC, parameters and runtime. A higher lift means greater
         concentration of positives at the same capacity and in the same population.
         A confidence interval crossing zero is inconclusive, not equivalence or proof of no value.
-        This revised universe changes prevalence: compare arms within this run, not absolute
-        lift against the old universe's addendum. Validation intervals condition on
+        Compare arms within this run. Historical source-vintage or cohort changes prevent treating
+        old addendum lift as a like-for-like benchmark. Validation intervals condition on
         checkpoints selected using the same validation labels.
         An additive input gain does not establish a causal mechanism or a general interaction.
         Do not choose a new winner from TEST. LightGBM comparison is explicitly deferred in this
@@ -469,9 +546,14 @@ def build():
                 statement = "lift difference remains inconclusive; interval includes zero"
             print(contrast, statement)
         print("No independent OOT conclusion. No completed LightGBM comparison in this run.")
+        wf.release_inputs(data)
+        del data
+        memory_receipt("notebook_05_released")
         ''')]
     files = []
     for name, cells in notebooks.items():
+        cells = [dict(cell, source=notebook_source("".join(cell["source"])).splitlines(True))
+                 for cell in cells if cell["cell_type"] == "code"]
         notebook = dict(nbformat=4, nbformat_minor=5, metadata={
             "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
             "language_info": {"name": "python"},

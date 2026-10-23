@@ -11,6 +11,10 @@ import hashlib
 import json
 import re
 import time
+import sqlite3
+import tempfile
+import os
+from contextlib import closing
 
 import numpy as np
 import pandas as pd
@@ -209,19 +213,131 @@ def _frame(value):
 
 
 def _read_long(read_query, requests, template, chunk_size):
-    frames = []
+    """Yield bounded aggregate frames; never collect all query results."""
     for start in range(0, len(requests), chunk_size):
         batch = requests.iloc[start:start+chunk_size]
         values = ["('"+patient.replace("'", "''")+"','"+date.strftime('%Y-%m-%d')+"')"
                   for patient, date in batch.itertuples(index=False, name=None)]
         request_sql = "SELECT column1::VARCHAR AS PATIENT_ID,TO_DATE(column2::VARCHAR) AS AS_OF_DATE FROM VALUES " + ','.join(values)
-        frames.append(_frame(read_query(template.replace('{request_sql}', request_sql))))
-    if not frames:
-        raise ValueError("No historical extraction keys")
-    return pd.concat(frames, ignore_index=True)
+        result = read_query(template.replace('{request_sql}', request_sql))
+        if hasattr(result, 'toLocalIterator') and not isinstance(result,pd.DataFrame):
+            columns = list(result.columns)
+            # SQL's UNION guarantees nulls in these numeric columns. Whole-query
+            # toPandas represents nullable integral Spark columns as float64;
+            # preserve that representation even in an all-FEATURE row chunk.
+            integral = {'ByteType','ShortType','IntegerType','LongType'}
+            float_columns = [field.name for field in getattr(getattr(result,'schema',None),'fields',[])
+                             if type(field.dataType).__name__ in integral and field.nullable
+                             and field.name.upper() in {'VALUE','RECENT_VALUE','AGE','AGE_CONFLICT'}]
+            def make_frame(rows):
+                frame=pd.DataFrame.from_records(rows, columns=columns)
+                for name in float_columns:
+                    frame[name]=frame[name].astype(np.float64)
+                return _frame(frame)
+            rows = []
+            for row in result.toLocalIterator(prefetchPartitions=False):
+                rows.append(tuple(row))
+                if len(rows) == 4096:
+                    yield make_frame(rows)
+                    rows.clear()
+            if rows:
+                yield make_frame(rows)
+        else:
+            result = _frame(result)
+            for row_start in range(0,len(result),4096):
+                yield result.iloc[row_start:row_start+4096].copy()
+        print("AutoML extraction requests completed:",min(start+chunk_size,len(requests)),"/",len(requests))
 
 
-def build_raw_automl_inputs(read_query, metadata, source_config=None):
+def _spool_long(read_query, requests, template, chunk_size, train_patients, db):
+    """Validate once while writing an indexed private disk spool.
+
+    raw_json stores exactly the bytes used by inputs.frame_hash before sorting;
+    SQLite supplies deterministic global key order without a full pandas sort.
+    """
+    db.execute('PRAGMA temp_store=FILE')
+    db.execute('PRAGMA cache_size=-16384')
+    db.execute('CREATE TABLE raw(p TEXT,d TEXT,k TEXT,c TEXT,raw_json BLOB,v REAL,r REAL,e TEXT,a REAL,ac REAL, PRIMARY KEY(p,d,k,c)) WITHOUT ROWID')
+    db.execute('CREATE TABLE train(p TEXT PRIMARY KEY) WITHOUT ROWID')
+    db.executemany('INSERT INTO train VALUES (?)',((p,) for p in sorted(train_patients)))
+    columns = None
+    total = 0
+    needed = {'PATIENT_ID','AS_OF_DATE','ROW_KIND','CATEGORY','VALUE','RECENT_VALUE','MAX_EVENT_DATE','AGE','AGE_CONFLICT'}
+    for part in _read_long(read_query,requests,template,chunk_size):
+        if not needed.issubset(part):
+            raise ValueError("Raw extraction response lacks required long-form fields")
+        if columns is None:
+            columns = list(part.columns)
+        elif columns != list(part.columns):
+            raise ValueError("Raw extraction response columns changed between batches")
+        if part.PATIENT_ID.isna().any():
+            raise ValueError("Raw extraction contains null patient keys")
+        part['PATIENT_ID'] = part.PATIENT_ID.map(str)
+        for col in ('AS_OF_DATE','MAX_EVENT_DATE'):
+            part[col] = pd.to_datetime(part[col],errors='raise')
+            if part[col].dt.tz is not None or not part[col].dropna().eq(part[col].dropna().dt.normalize()).all():
+                raise ValueError("Expected exact date-grain raw source dates")
+        if not part.ROW_KIND.isin(['COVERAGE','FEATURE']).all():
+            raise ValueError("Unknown raw extraction record kind")
+        if part.AS_OF_DATE.isna().any() or (part.MAX_EVENT_DATE.notna() & part.MAX_EVENT_DATE.gt(part.AS_OF_DATE)).any():
+            raise ValueError("Invalid or future raw source date")
+        if (part.MAX_EVENT_DATE.notna() & part.MAX_EVENT_DATE.lt(part.AS_OF_DATE-pd.DateOffset(months=12))).any():
+            raise ValueError("Raw source event evidence predates the 12-month window")
+        records = []
+        for row in part.itertuples(index=False,name=None):
+            item = dict(zip(columns,row))
+            feature = item['ROW_KIND'] == 'FEATURE'
+            category = item['CATEGORY']
+            event = item['MAX_EVENT_DATE']
+            if feature:
+                if pd.isna(category) or not str(category).strip():
+                    raise ValueError("Raw feature category must be explicit")
+                try:
+                    value,recent = float(item['VALUE']),float(item['RECENT_VALUE'])
+                except (TypeError,ValueError,OverflowError) as exc:
+                    raise ValueError("Raw distinct counts must be finite nonnegative integers") from exc
+                if not np.isfinite([value,recent]).all() or value <= 0 or recent < 0 or value != np.floor(value) or recent != np.floor(recent) or recent > value:
+                    raise ValueError("Raw distinct counts must be finite nonnegative integers with valid annual/recent relationship")
+                if pd.isna(event):
+                    raise ValueError("Feature counts require in-window event evidence for a requested key")
+                age=conflict=None
+            else:
+                value=recent=None
+                age = None if pd.isna(item['AGE']) else float(item['AGE'])
+                conflict = None if pd.isna(item['AGE_CONFLICT']) else float(item['AGE_CONFLICT'])
+                if age is not None and (not np.isfinite(age) or age < 0):
+                    raise ValueError("Invalid raw age")
+            records.append((item['PATIENT_ID'],item['AS_OF_DATE'].strftime('%Y-%m-%d'),item['ROW_KIND'],str(category) if feature else '',
+                inputs.canonical_row_bytes(row),value,recent,None if pd.isna(event) else event.strftime('%Y-%m-%d'),age,conflict))
+        try:
+            db.executemany('INSERT INTO raw VALUES (?,?,?,?,?,?,?,?,?,?)',records)
+        except sqlite3.IntegrityError as exc:
+            raise ValueError("Duplicate raw coverage keys or aggregated raw feature rows") from exc
+        total += len(part)
+        db.commit()
+    if columns is None:
+        raise ValueError("Raw extraction response lacks required long-form fields")
+    # Build once on disk: category materialization below must not scan the full
+    # extraction again for each of the up to 255 retained category pairs.
+    db.execute('CREATE INDEX raw_by_category ON raw(k,c,p,d)')
+    coverage = pd.read_sql_query("SELECT p AS PATIENT_ID,d AS AS_OF_DATE,e AS MAX_EVENT_DATE,a AS AGE,ac AS AGE_CONFLICT FROM raw WHERE k='COVERAGE' ORDER BY p,d",db)
+    coverage['AS_OF_DATE']=pd.to_datetime(coverage.AS_OF_DATE)
+    coverage['MAX_EVENT_DATE']=pd.to_datetime(coverage.MAX_EVENT_DATE)
+    joined=requests.merge(coverage,on=inputs.KEYS,how='outer',indicator=True,validate='one_to_one')
+    if not joined._merge.eq('both').all():
+        raise ValueError("Raw extraction did not return exact requested coverage keys")
+    coverage=joined.drop(columns='_merge').sort_values(inputs.KEYS).reset_index(drop=True)
+    coverage['IS_OBSERVED']=coverage.MAX_EVENT_DATE.notna()
+    if db.execute("SELECT 1 FROM raw f LEFT JOIN raw c ON f.p=c.p AND f.d=c.d AND c.k='COVERAGE' WHERE f.k='FEATURE' AND (c.p IS NULL OR c.e IS NULL) LIMIT 1").fetchone():
+        raise ValueError("Feature counts require in-window event evidence for a requested key")
+    support=dict(db.execute("SELECT c,COUNT(DISTINCT raw.p) FROM raw JOIN train ON raw.p=train.p WHERE k='FEATURE' GROUP BY c"))
+    h=hashlib.sha256(json.dumps(columns,separators=(',',':')).encode())
+    for (payload,) in db.execute('SELECT raw_json FROM raw ORDER BY p,d,k,c'):
+        h.update(payload)
+    return coverage,support,h.hexdigest(),total
+
+
+def _build_raw_automl_inputs(read_query, metadata, source_config, db):
     """Extract raw long rows once per unique patient/date; return AUTOML_SETUP.
 
     Vocabulary is label-blind and restricted to TRAIN patients. If max_features
@@ -242,52 +358,9 @@ def build_raw_automl_inputs(read_query, metadata, source_config=None):
     requests, _ = inputs.make_requests(meta, date_policy=cfg['date_policy'])
     template = raw_sql_template(cfg)
     started = time.perf_counter()
-    long = _read_long(read_query, requests, template, cfg['chunk_size'])
-    needed = {'PATIENT_ID','AS_OF_DATE','ROW_KIND','CATEGORY','VALUE','RECENT_VALUE','MAX_EVENT_DATE','AGE','AGE_CONFLICT'}
-    if not needed.issubset(long):
-        raise ValueError("Raw extraction response lacks required long-form fields")
-    if long.PATIENT_ID.isna().any():
-        raise ValueError("Raw extraction contains null patient keys")
-    long['PATIENT_ID'] = long.PATIENT_ID.map(str)
-    long['AS_OF_DATE'] = pd.to_datetime(long.AS_OF_DATE, errors='raise')
-    long['MAX_EVENT_DATE'] = pd.to_datetime(long.MAX_EVENT_DATE, errors='raise')
-    if not long.ROW_KIND.isin(['COVERAGE','FEATURE']).all():
-        raise ValueError("Unknown raw extraction record kind")
-    for col in ('AS_OF_DATE','MAX_EVENT_DATE'):
-        if long[col].dt.tz is not None or not long[col].dropna().eq(long[col].dropna().dt.normalize()).all():
-            raise ValueError("Expected exact date-grain raw source dates")
-    if long.AS_OF_DATE.isna().any() or (long.MAX_EVENT_DATE.notna() & (long.MAX_EVENT_DATE > long.AS_OF_DATE)).any():
-        raise ValueError("Invalid or future raw source date")
-    lower = long.AS_OF_DATE - pd.DateOffset(months=12)
-    if (long.MAX_EVENT_DATE.notna() & long.MAX_EVENT_DATE.lt(lower)).any():
-        raise ValueError("Raw source event evidence predates the 12-month window")
-    coverage = long.loc[long.ROW_KIND.eq('COVERAGE'), ['PATIENT_ID','AS_OF_DATE','MAX_EVENT_DATE','AGE','AGE_CONFLICT']].copy()
-    if coverage.duplicated(inputs.KEYS).any():
-        raise ValueError("Duplicate raw coverage keys")
-    joined = requests.merge(coverage, on=inputs.KEYS, how='outer', indicator=True, validate='one_to_one')
-    if not joined._merge.eq('both').all():
-        raise ValueError("Raw extraction did not return exact requested coverage keys")
-    coverage = joined.drop(columns='_merge').sort_values(inputs.KEYS).reset_index(drop=True)
-    coverage['IS_OBSERVED'] = coverage.MAX_EVENT_DATE.notna()
-    features = long.loc[long.ROW_KIND.eq('FEATURE')].copy()
-    if features.CATEGORY.isna().any() or features.CATEGORY.map(str).str.strip().eq('').any():
-        raise ValueError("Raw feature category must be explicit")
-    features['CATEGORY'] = features.CATEGORY.map(str)
-    if features.duplicated(inputs.KEYS+['CATEGORY']).any():
-        raise ValueError("Duplicate aggregated raw feature rows")
-    check = features.merge(coverage[inputs.KEYS+['IS_OBSERVED']], on=inputs.KEYS, how='left', validate='many_to_one')
-    if check.IS_OBSERVED.isna().any() or not check.IS_OBSERVED.all() or features.MAX_EVENT_DATE.isna().any():
-        raise ValueError("Feature counts require in-window event evidence for a requested key")
-    for col in ('VALUE','RECENT_VALUE'):
-        features[col] = pd.to_numeric(features[col], errors='raise').astype(float)
-        a = features[col].to_numpy()
-        if not np.isfinite(a).all() or np.any(a < 0) or np.any(a != np.floor(a)):
-            raise ValueError("Raw distinct counts must be finite nonnegative integers")
-    if (features.VALUE <= 0).any() or (features.RECENT_VALUE > features.VALUE).any():
-        raise ValueError("Invalid annual/recent count relationship")
     train_patients = set(meta.loc[meta.SPLIT.eq('train'),'PATIENT_ID'])
-    train = features[features.PATIENT_ID.isin(train_patients)]
-    support = train.groupby('CATEGORY').PATIENT_ID.nunique().to_dict()
+    coverage,support,long_hash,long_rows = _spool_long(read_query, requests, template,
+        cfg['chunk_size'], train_patients, db)
     candidates = []
     for category in sorted(support):
         for measure in ('count','recent_pct'):
@@ -308,32 +381,51 @@ def build_raw_automl_inputs(read_query, metadata, source_config=None):
     names = [s['name'] for s in specs]
     if len(set(names)) != len(names):
         raise ValueError("Raw AutoML sanitizer collision")
-    values = np.zeros((len(coverage),len(specs)),dtype=np.float64)
-    observed = coverage.IS_OBSERVED.to_numpy()
-    values[~observed] = np.nan
-    key_index = pd.MultiIndex.from_frame(coverage[inputs.KEYS])
-    selected_by_category = {}
-    for j,spec in enumerate(specs):
-        if spec['measure']=='age':
-            ages = pd.to_numeric(coverage.AGE,errors='raise').to_numpy(dtype=float)
-            if np.isinf(ages).any() or np.any(ages[np.isfinite(ages)]<0):
-                raise ValueError("Invalid raw age")
-            values[observed,j] = ages[observed]
+    values = inputs.disk_array((len(coverage),len(specs)),np.float64,"tak861-panel-")
+    try:
+        for start in range(0,len(values),inputs.ARRAY_ROW_CHUNK):
+            values[start:start+inputs.ARRAY_ROW_CHUNK] = 0.
+        observed = coverage.IS_OBSERVED.to_numpy()
+        values[~observed] = np.nan
+        key_index = pd.MultiIndex.from_frame(coverage[inputs.KEYS])
+        selected_by_category = {}
+        for j,spec in enumerate(specs):
+            if spec['measure']=='age':
+                ages = pd.to_numeric(coverage.AGE,errors='raise').to_numpy(dtype=float)
+                if np.isinf(ages).any() or np.any(ages[np.isfinite(ages)]<0):
+                    raise ValueError("Invalid raw age")
+                values[observed,j] = ages[observed]
+            else:
+                selected_by_category.setdefault(spec['raw_category'],[]).append((j,spec['measure']))
+        for category,columns_for_category in selected_by_category.items():
+            cursor = db.execute("SELECT p,d,v,r FROM raw WHERE k='FEATURE' AND c=? ORDER BY p,d",(category,))
+            while True:
+                batch = cursor.fetchmany(inputs.ARRAY_ROW_CHUNK)
+                if not batch: break
+                part = pd.DataFrame.from_records(batch,columns=inputs.KEYS+['VALUE','RECENT_VALUE'])
+                part['AS_OF_DATE']=pd.to_datetime(part.AS_OF_DATE)
+                rows = key_index.get_indexer(pd.MultiIndex.from_frame(part[inputs.KEYS]))
+                annual,recent=part.VALUE.to_numpy(),part.RECENT_VALUE.to_numpy()
+                pct=np.where((annual>6)&(recent>2),np.floor(100.*recent/annual+.5),0.)
+                for j,measure in columns_for_category:
+                    values[rows,j]=annual if measure=='count' else pct
+        values.flush()
+        panel_meta=coverage[inputs.KEYS+['IS_OBSERVED','MAX_EVENT_DATE']].copy()
+        panel_meta['OBSERVATION_EVIDENCE']=np.where(observed,
+            'eligible_source_event_in_12m_window; continuous_coverage_unknown',
+            'no_eligible_source_event; window_availability_unknown')
+        if values.nbytes <= inputs.PANEL_MEMORY_LIMIT:
+            panel=pd.concat([panel_meta[inputs.KEYS+['IS_OBSERVED']],pd.DataFrame(np.asarray(values).copy(),columns=names)],axis=1)
+            panel['MAX_EVENT_DATE']=panel_meta.MAX_EVENT_DATE
+            panel['OBSERVATION_EVIDENCE']=panel_meta.OBSERVATION_EVIDENCE
+            inputs.release_array(values)
         else:
-            selected_by_category.setdefault(spec['raw_category'],[]).append((j,spec['measure']))
-    for category,part in features.groupby('CATEGORY',sort=False):
-        if category not in selected_by_category:continue
-        rows = key_index.get_indexer(pd.MultiIndex.from_frame(part[inputs.KEYS]))
-        annual,recent = part.VALUE.to_numpy(),part.RECENT_VALUE.to_numpy()
-        # Counts are nonnegative; floor(x+.5) matches decimal half-up rounding.
-        pct = np.where((annual>6)&(recent>2),np.floor(100.*recent/annual+.5),0.)
-        for j,measure in selected_by_category[category]:
-            values[rows,j] = annual if measure=='count' else pct
-    panel = pd.concat([coverage[inputs.KEYS+['IS_OBSERVED']].copy(),pd.DataFrame(values,columns=names)],axis=1)
-    panel['MAX_EVENT_DATE'] = coverage.MAX_EVENT_DATE
-    panel['OBSERVATION_EVIDENCE'] = np.where(observed,'eligible_source_event_in_12m_window; continuous_coverage_unknown','no_eligible_source_event; window_availability_unknown')
-    specs = inputs.validate_feature_specs(specs)
-    long_hash = inputs.frame_hash(long.sort_values(['PATIENT_ID','AS_OF_DATE','ROW_KIND','CATEGORY'],na_position='first').reset_index(drop=True))
+            values=inputs.readonly_array(values)
+            panel=inputs.DiskPanel(panel_meta,values,names)
+    except BaseException:
+        inputs.release_array(values)
+        raise
+    specs=inputs.validate_feature_specs(specs)
     contract = dict(source_id=cfg['source_schema']+' raw AutoML categories',
         source_version='LATEST tables read for this extraction; long_content_sha256='+long_hash,
         extraction_sha256=hashlib.sha256(template.encode('utf-8')).hexdigest(),
@@ -356,7 +448,7 @@ def build_raw_automl_inputs(read_query, metadata, source_config=None):
     removed = [item for item in candidates if item['name'] not in set(names)]
     receipt = dict(execution_status='raw_extraction_completed_on_configured_sources',
         query_count=int(np.ceil(len(requests)/cfg['chunk_size'])),requested_unique_keys=len(requests),
-        returned_long_rows=len(long),observed_window_keys=int(observed.sum()),unavailable_window_keys=int((~observed).sum()),
+        returned_long_rows=long_rows,observed_window_keys=int(observed.sum()),unavailable_window_keys=int((~observed).sum()),
         age_conflict_keys=int(pd.to_numeric(coverage.AGE_CONFLICT,errors='raise').fillna(0).sum()),
         original_train_candidate_features=len(candidates)+1,retained_input_features=len(specs),
         vocabulary_policy='label-blind TRAIN patient frequency; category-name ties; keep count/recent pairs together; AGE slot reserved',
@@ -369,3 +461,10 @@ def build_raw_automl_inputs(read_query, metadata, source_config=None):
     manifest['raw_extraction_receipt'] = receipt
     return dict(feature_specs=specs,contract=contract,cached_panel=panel,cached_manifest=manifest,
                 extractor=None,sql_template=None,receipt=receipt)
+
+
+def build_raw_automl_inputs(read_query, metadata, source_config=None):
+    """One extraction pass into a bounded disk spool; no full long-frame collect."""
+    with tempfile.TemporaryDirectory(prefix='tak861-raw-spool-') as scratch:
+        with closing(sqlite3.connect(os.path.join(scratch,'raw.sqlite'))) as db:
+            return _build_raw_automl_inputs(read_query,metadata,source_config,db)

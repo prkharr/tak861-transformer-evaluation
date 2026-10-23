@@ -42,6 +42,23 @@ class ClientUniverseTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'exactly one'):c.resolve_universe(lambda q:bad)
         with self.assertRaisesRegex(ValueError,'requested'):c.resolve_universe(None,'DB.SC.OLD_TABLE')
 
+    def test_population_configuration_matches_independent_audit_and_fails_closed(self):
+        _, audit = c.align_universe(self.old, self.old)
+        expected = dict(snapshots=6, patients=6, positives=3,
+            per_split={s:dict(snapshots=2, patients=2, positives=1) for s in ('train','validation','test')})
+        self.assertEqual(c.assert_expected_population(audit, expected), expected)
+        with self.assertRaisesRegex(ValueError, 'Declare CONFIG'):
+            c.assert_expected_population(audit, None)
+        expected['per_split']['train']['positives']=0
+        with self.assertRaisesRegex(ValueError, 'differs from the universe audit'):
+            c.assert_expected_population(audit, expected)
+
+    def test_original_cohort_configuration_only_resolves_requested_keys_table(self):
+        table='DSVC_TAKEDA_TA_PRIVATE.DS_ML.TAK861_TX_READY_V63_MODEL_DATA'
+        self.assertEqual(c.resolve_universe(None, table, 'TAK861_TX_READY_V63_MODEL_DATA'), table)
+        with self.assertRaisesRegex(ValueError, 'requested'):
+            c.resolve_universe(None, table)
+
     def test_removed_or_reformatted_patient_keys_stop(self):
         new=self.old.copy(); new.PATIENT_ID='prefix'+new.PATIENT_ID
         with self.assertRaisesRegex(ValueError,'removes prior'): c.align_universe(new,self.old)

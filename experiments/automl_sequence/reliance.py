@@ -79,48 +79,58 @@ def run(data, prep, protocol, results, workflow, modeling, comparison):
         runs = results[arm]
         if len(runs) != len(protocol["seeds"]) or [r["summary"]["seed"] for r in runs] != protocol["seeds"]:
             raise ValueError("All registered seeds required for reliance ensemble")
-        x, valid, static = workflow.arm_arrays(data, prep, config, "validation")
-        x, valid = np.asarray(x)[selected], np.asarray(valid)[selected]
-        static = None if static is None else np.asarray(static)[selected]
-        def ensemble(values, static_values):
-            return np.mean([modeling.predict_encoder(fit, values, valid=valid, static=static_values)
-                            for fit in runs], axis=0)
-        primary_fraction = float(protocol.get("primary_lift_fraction", .10))
-        base_scores = ensemble(x, static)
-        baseline = comparison.binary_metrics(labels, base_scores)["average_precision"]
-        baseline_lift = modeling.lift_at_fraction(labels, base_scores, primary_fraction)
-        for family, destination, rank_group, columns in _groups(arm, prep):
-            if len(columns) == 0:
-                report["rows"].append(dict(arm=arm, feature_family=family, rank_group=rank_group,
-                                           status="skipped_empty_rank_group", n_features=0, patients=len(selected)))
-                continue
-            for repeat, seed in enumerate(PERMUTATION_SEEDS, 1):
-                rng = np.random.default_rng(seed)
-                order = np.arange(len(selected))
-                for rows in shuffleable:
-                    order[rows] = rng.permutation(rows)
-                changed = int(np.sum(order != np.arange(len(selected))))
-                perturbed_x, perturbed_static = x, static
-                if destination == "static":
-                    if static is None:
-                        raise ValueError("Static reliance group requires a static input branch")
-                    perturbed_static = static.copy()
-                    perturbed_static[:, columns] = static[order][:, columns]
-                else:
-                    perturbed_x = x.copy()
-                    perturbed_x[:, :, columns] = x[order][:, :, columns]
-                permuted_scores = ensemble(perturbed_x, perturbed_static)
-                ap = comparison.binary_metrics(labels, permuted_scores)["average_precision"]
-                lift = modeling.lift_at_fraction(labels, permuted_scores, primary_fraction)
-                report["rows"].append(dict(arm=arm, feature_family=family, rank_group=rank_group,
-                                           repeat=repeat, permutation_seed=seed, status="completed",
-                                           n_features=len(columns), patients=len(selected),
-                                           shuffleable_strata=len(shuffleable), shuffled_patients=changed,
-                                           primary_lift_fraction=primary_fraction,
-                                           baseline_lift=float(baseline_lift), permuted_lift=float(lift),
-                                           lift_drop=float(baseline_lift-lift),
-                                           baseline_ap=float(baseline), permuted_ap=float(ap),
-                                           ap_drop=float(baseline-ap), direction="baseline_minus_permuted",
-                                           interpretation="positive drop indicates predictive reliance under this perturbation"))
+        x, valid, static = workflow.arm_arrays(data, prep, config, "validation", subset=selected)
+        try:
+            def ensemble(values, static_values):
+                return np.mean([modeling.predict_encoder(fit, values, valid=valid, static=static_values)
+                                for fit in runs], axis=0)
+            primary_fraction = float(protocol.get("primary_lift_fraction", .10))
+            base_scores = ensemble(x, static)
+            baseline = comparison.binary_metrics(labels, base_scores)["average_precision"]
+            baseline_lift = modeling.lift_at_fraction(labels, base_scores, primary_fraction)
+            for family, destination, rank_group, columns in _groups(arm, prep):
+                if len(columns) == 0:
+                    report["rows"].append(dict(arm=arm, feature_family=family, rank_group=rank_group,
+                                               status="skipped_empty_rank_group", n_features=0, patients=len(selected)))
+                    continue
+                for repeat, seed in enumerate(PERMUTATION_SEEDS, 1):
+                    rng = np.random.default_rng(seed)
+                    order = np.arange(len(selected))
+                    for rows in shuffleable:
+                        order[rows] = rng.permutation(rows)
+                    changed = int(np.sum(order != np.arange(len(selected))))
+                    perturbed_x, perturbed_static = x, static
+                    try:
+                        if destination == "static":
+                            if static is None:
+                                raise ValueError("Static reliance group requires a static input branch")
+                            perturbed_static = modeling.take_rows(static, np.arange(len(static)))
+                            for start in range(0, len(static), 256):
+                                perturbed_static[start:start+256, columns] = static[order[start:start+256]][:, columns]
+                        else:
+                            perturbed_x = modeling.take_rows(x, np.arange(len(x)))
+                            for start in range(0, len(x), 256):
+                                perturbed_x[start:start+256, :, columns] = x[order[start:start+256]][:, :, columns]
+                        permuted_scores = ensemble(perturbed_x, perturbed_static)
+                    finally:
+                        if perturbed_x is not x:
+                            modeling.release_array(perturbed_x)
+                        if perturbed_static is not static:
+                            modeling.release_array(perturbed_static)
+                    ap = comparison.binary_metrics(labels, permuted_scores)["average_precision"]
+                    lift = modeling.lift_at_fraction(labels, permuted_scores, primary_fraction)
+                    report["rows"].append(dict(arm=arm, feature_family=family, rank_group=rank_group,
+                                               repeat=repeat, permutation_seed=seed, status="completed",
+                                               n_features=len(columns), patients=len(selected),
+                                               shuffleable_strata=len(shuffleable), shuffled_patients=changed,
+                                               primary_lift_fraction=primary_fraction,
+                                               baseline_lift=float(baseline_lift), permuted_lift=float(lift),
+                                               lift_drop=float(baseline_lift-lift),
+                                               baseline_ap=float(baseline), permuted_ap=float(ap),
+                                               ap_drop=float(baseline-ap), direction="baseline_minus_permuted",
+                                               interpretation="positive drop indicates predictive reliance under this perturbation"))
+        finally:
+            modeling.release_array(x)
+            modeling.release_array(static)
     report["status"] = "completed"
     return report

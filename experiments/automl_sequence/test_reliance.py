@@ -34,10 +34,12 @@ class RelianceTests(unittest.TestCase):
         results = {name: [{"summary": {"seed": seed}, "arm": name} for seed in protocol["seeds"]]
                    for name in protocol["arms"]}
         calls = []
-        def arrays(data, prep, config, split):
+        def arrays(data, prep, config, split, subset=None):
             self.assertEqual(split, "validation")
             arm = config["name"]
-            return (x[:, :, :3] if arm != "TEMPORAL_FUSION" else x), np.ones((n, 12), bool), (static if arm == "STATIC_FUSION" else None)
+            rows=np.arange(n) if subset is None else subset
+            return ((x[rows, :, :3] if arm != "TEMPORAL_FUSION" else x[rows]),
+                    np.ones((len(rows), 12), bool), (static[rows] if arm == "STATIC_FUSION" else None))
         def predict(run, values, valid=None, static=None):
             self.assertEqual(len(values), 8)
             if run["arm"] == "TEMPORAL_FUSION":
@@ -49,7 +51,9 @@ class RelianceTests(unittest.TestCase):
             if run["arm"] == "TEMPORAL_FUSION":
                 score += values[:, 0, 3]
             return 1 / (1 + np.exp(-score))
-        return data, prep, protocol, results, types.SimpleNamespace(arm_arrays=arrays), types.SimpleNamespace(predict_encoder=predict, lift_at_fraction=modeling.lift_at_fraction), calls
+        return data, prep, protocol, results, types.SimpleNamespace(arm_arrays=arrays), types.SimpleNamespace(
+            predict_encoder=predict, lift_at_fraction=modeling.lift_at_fraction,
+            take_rows=modeling.take_rows, release_array=modeling.release_array), calls
 
     def test_all_seeds_temporal_groups_and_latest_validation_only(self):
         data, prep, protocol, results, wf, model, calls = self.fixture()

@@ -10,6 +10,8 @@ import hashlib
 import json
 import re
 import time
+import os
+import tempfile
 from typing import Callable
 
 import numpy as np
@@ -17,6 +19,103 @@ import pandas as pd
 
 
 KEYS = ["PATIENT_ID", "AS_OF_DATE"]
+PANEL_MEMORY_LIMIT = 16 * 1024 * 1024
+ARRAY_ROW_CHUNK = 2048
+
+
+def disk_array(shape, dtype=np.float32, prefix="tak861-array-"):
+    """Allocate an owned scratch memmap; callers release it after persistence."""
+    handle, path = tempfile.mkstemp(prefix=prefix, suffix=".npy")
+    os.close(handle)
+    try:
+        value=np.lib.format.open_memmap(path, mode="w+", dtype=dtype, shape=shape)
+    except BaseException:
+        os.unlink(path)
+        raise
+    value._scratch_owner_id=id(value)
+    return value
+
+
+def _require_array_owner(value):
+    if not isinstance(value,np.memmap) or getattr(value,'_scratch_owner_id',None)!=id(value):
+        raise ValueError("Cannot release an array view or unowned mapping; release the owning array")
+
+
+def readonly_array(value):
+    """Transfer one owned scratch file into a read-only owning mapping."""
+    _require_array_owner(value)
+    path=value.filename
+    value.flush()
+    value._mmap.close()
+    result=np.load(path,mmap_mode='r',allow_pickle=False)
+    result._scratch_owner_id=id(result)
+    value._scratch_owner_id=None
+    return result
+
+
+def release_array(value):
+    """Release only the explicit scratch owner, never an ndarray/memmap view."""
+    if isinstance(value, np.memmap):
+        _require_array_owner(value)
+        path = value.filename
+        if not value._mmap.closed:
+            value.flush()
+            value._mmap.close()
+        try:
+            os.unlink(path)
+        except FileNotFoundError:
+            pass
+    elif isinstance(value,np.ndarray):
+        current=value.base
+        while isinstance(current,np.ndarray):
+            if isinstance(current,np.memmap):
+                raise ValueError("Cannot release an array view; release the owning array")
+            current=current.base
+
+
+class DiskPanel:
+    """Ordered metadata plus a disk-backed float64 matrix, never a wide merge.
+
+    Float64 storage preserves the original validated-panel fingerprint; model
+    tensors are still float32, exactly as in the original assembly path.
+    """
+    def __init__(self, metadata, values, names):
+        self.metadata = metadata.reset_index(drop=True)
+        self.values = values
+        self.names = list(names)
+        self.columns = pd.Index(KEYS + ["IS_OBSERVED"] + self.names +
+            [c for c in ("MAX_EVENT_DATE", "MAX_AVAILABLE_DATE", "OBSERVATION_EVIDENCE") if c in metadata])
+        self._validated_specs_hash = None
+        self._panel_hash = None
+        self._panel_cache_key = None
+        self._key_hash = None
+
+    def __len__(self):
+        return len(self.metadata)
+
+    @property
+    def IS_OBSERVED(self):
+        return self.metadata.IS_OBSERVED
+
+    def __contains__(self, key):
+        return key in self.columns
+
+    def __getitem__(self, key):
+        if isinstance(key, str) and key in self.metadata:
+            return self.metadata[key]
+        if isinstance(key, list) and all(k in self.metadata for k in key):
+            return self.metadata[key]
+        raise TypeError("DiskPanel features require bounded iter_frames(), not a full frame copy")
+
+    def iter_frames(self, rows=ARRAY_ROW_CHUNK):
+        for start in range(0, len(self), rows):
+            stop = min(start + rows, len(self))
+            part = self.metadata.iloc[start:stop].reset_index(drop=True).copy()
+            features = pd.DataFrame(self.values[start:stop], columns=self.names, copy=False)
+            yield pd.concat([part, features], axis=1)[list(self.columns)]
+
+    def close(self):
+        release_array(self.values)
 RESERVED_COLUMNS = frozenset({
     "PATIENT_ID", "AS_OF_DATE", "END_DT", "RESP", "SPLIT", "TARGET", "LABEL",
     "OUTCOME", "SCORE", "PREDICTION", "IS_OBSERVED", "MAX_EVENT_DATE",
@@ -182,6 +281,20 @@ def _normalize_keys(frame):
 
 def validate_panel(panel, specs):
     specs = validate_feature_specs(specs)
+    if isinstance(panel, DiskPanel):
+        names = [s["name"] for s in specs]
+        _require(names == panel.names, "Disk panel feature order differs")
+        key_frame = _normalize_keys(panel.metadata)
+        _require(key_frame[KEYS].equals(key_frame[KEYS].sort_values(KEYS).reset_index(drop=True)),
+                 "Disk panel keys must be sorted")
+        signature = (stable_hash(specs), frame_hash(panel.metadata))
+        if panel._validated_specs_hash != signature:
+            for part in panel.iter_frames():
+                validate_panel(part, specs)
+            panel._validated_specs_hash = signature
+            panel._panel_hash = None
+            panel._key_hash = frame_hash(panel.metadata[KEYS])
+        return panel
     frame = _normalize_keys(panel)
     names = [s["name"] for s in specs]
     _require(set(names + ["IS_OBSERVED"]).issubset(frame.columns), "Panel lacks feature fields or explicit IS_OBSERVED coverage")
@@ -212,26 +325,43 @@ def validate_panel(panel, specs):
     return frame[keep].sort_values(KEYS).reset_index(drop=True)
 
 
+def canonical_row_bytes(row):
+    canonical = []
+    for value in row:
+        if pd.isna(value):
+            canonical.append(None)
+        elif isinstance(value, (pd.Timestamp, np.datetime64)):
+            canonical.append(pd.Timestamp(value).isoformat())
+        elif isinstance(value, (np.bool_, bool)):
+            canonical.append(bool(value))
+        elif isinstance(value, (float, np.floating)):
+            canonical.append(float(value))
+        elif isinstance(value, (int, np.integer)):
+            canonical.append(int(value))
+        else:
+            canonical.append(str(value))
+    return json.dumps(canonical, separators=(",", ":"), allow_nan=False).encode() + b"\n"
+
+
 def frame_hash(frame):
     """Fingerprint content and ordering without returning any patient-level data."""
+    if isinstance(frame, DiskPanel):
+        # Metadata is deliberately small and remains a DataFrame. A caller may
+        # edit a column/Series after validation; never return the old content
+        # hash for that changed metadata. Numeric storage is read-only.
+        cache_key=(tuple(frame.columns),tuple(frame.names),frame_hash(frame.metadata))
+        if frame._panel_hash is not None and frame._panel_cache_key == cache_key:
+            return frame._panel_hash
     h = hashlib.sha256(json.dumps(list(frame.columns), separators=(",", ":")).encode())
+    if isinstance(frame, DiskPanel):
+        for part in frame.iter_frames():
+            for row in part.itertuples(index=False, name=None):
+                h.update(canonical_row_bytes(row))
+        frame._panel_hash = h.hexdigest()
+        frame._panel_cache_key = cache_key
+        return frame._panel_hash
     for row in frame.itertuples(index=False, name=None):
-        canonical = []
-        for value in row:
-            if pd.isna(value):
-                canonical.append(None)
-            elif isinstance(value, (pd.Timestamp, np.datetime64)):
-                canonical.append(pd.Timestamp(value).isoformat())
-            elif isinstance(value, (np.bool_, bool)):
-                canonical.append(bool(value))
-            elif isinstance(value, (float, np.floating)):
-                canonical.append(float(value))
-            elif isinstance(value, (int, np.integer)):
-                canonical.append(int(value))
-            else:
-                canonical.append(str(value))
-        h.update(json.dumps(canonical, separators=(",", ":"), allow_nan=False).encode())
-        h.update(b"\n")
+        h.update(canonical_row_bytes(row))
     return h.hexdigest()
 
 
@@ -241,7 +371,7 @@ def make_panel_manifest(panel, specs, contract):
     frame = validate_panel(panel, specs)
     return {"schema": 1, "contract": contract, "contract_sha256": stable_hash(contract),
             "feature_specs": specs, "feature_specs_sha256": stable_hash(specs),
-            "panel_sha256": frame_hash(frame), "key_sha256": frame_hash(frame[KEYS]),
+            "panel_sha256": frame_hash(frame), "key_sha256": frame._key_hash if isinstance(frame, DiskPanel) else frame_hash(frame[KEYS]),
             "rows": len(frame), "observed_rows": int(frame.IS_OBSERVED.sum()),
             "availability_provenance": "MAX_AVAILABLE_DATE present; nulls remain unresolved" if "MAX_AVAILABLE_DATE" in frame else "Still unresolved: source availability clock not supplied",
             "event_provenance": "MAX_EVENT_DATE checked where supplied" if "MAX_EVENT_DATE" in frame else "Contract-declared only; event maxima not supplied"}
@@ -282,7 +412,7 @@ def obtain_panel(requests, specs, contract, cached_panel=None, cached_manifest=N
         _require(coverage._merge.eq("both").all(), "Extractor must return exactly the requested keys, including explicit unavailable rows")
         if cached is not None:
             _require(list(cached.columns) == list(fresh.columns), "Fresh/cached provenance schemas differ; resolve before combining")
-            combined = pd.concat([cached, fresh], ignore_index=True)
+            combined = combine_panels(cached, fresh) if isinstance(cached, DiskPanel) or isinstance(fresh, DiskPanel) else pd.concat([cached, fresh], ignore_index=True)
         else:
             combined = fresh
     else:
@@ -297,22 +427,57 @@ def obtain_panel(requests, specs, contract, cached_panel=None, cached_manifest=N
     return combined, manifest
 
 
+def combine_panels(left, right):
+    disk = left if isinstance(left, DiskPanel) else right
+    names = disk.names
+    def metadata(part):
+        return part.metadata if isinstance(part, DiskPanel) else part[[c for c in part if c not in names]]
+    meta = pd.concat([metadata(left), metadata(right)], ignore_index=True)
+    order = meta.sort_values(KEYS).index.to_numpy()
+    inverse = np.empty(len(order), dtype=np.int64); inverse[order] = np.arange(len(order))
+    values = disk_array((len(meta),len(names)), np.float64, 'tak861-panel-')
+    offset = 0
+    for part in (left, right):
+        for start in range(0,len(part),ARRAY_ROW_CHUNK):
+            stop = min(start+ARRAY_ROW_CHUNK,len(part))
+            block = part.values[start:stop] if isinstance(part,DiskPanel) else part.iloc[start:stop][names].to_numpy(dtype=np.float64)
+            values[inverse[offset+start:offset+stop]] = block
+        offset += len(part)
+    values=readonly_array(values)
+    return DiskPanel(meta.iloc[order].reset_index(drop=True),values,names)
+
+
 def assemble_inputs(metadata, panel, specs, steps=12, date_policy="same_day_months"):
     """Assemble S=Nx1xF and T=Nx12xF with common ordering and coverage masks."""
     meta = normalize_snapshots(metadata)
     specs = validate_feature_specs(specs)
     frame = validate_panel(panel, specs)
     requests, grid = make_requests(meta, steps, date_policy)
-    aligned = grid.merge(frame, on=KEYS, how="left", sort=False, validate="many_to_one", indicator=True)
-    _require(aligned._merge.eq("both").all(), "Historical panel does not cover every requested patient/date")
-    aligned = aligned.sort_values(["SNAPSHOT_ROW", "TIME_STEP"]).reset_index(drop=True)
     names = [s["name"] for s in specs]
-    x = aligned[names].to_numpy(dtype=np.float32).reshape(len(meta), steps, len(names))
-    _require(not np.isinf(x).any(), "Numeric features overflow float32; inspect source scale before modeling")
-    mask = aligned.IS_OBSERVED.astype(bool).to_numpy().reshape(len(meta), steps)
+    panel_keys = frame.metadata[KEYS] if isinstance(frame,DiskPanel) else frame[KEYS]
+    order = pd.MultiIndex.from_frame(panel_keys).get_indexer(pd.MultiIndex.from_frame(grid[KEYS]))
+    _require((order >= 0).all(), "Historical panel does not cover every requested patient/date")
+    x = disk_array((len(meta), steps, len(names)), np.float32, 'tak861-sequence-')
+    summary = disk_array((len(meta),1,len(names)),np.float32,'tak861-summary-')
+    observed = frame.IS_OBSERVED.to_numpy(dtype=bool)
+    mask = observed[order].reshape(len(meta),steps)
+    flat = x.reshape(-1,len(names))
+    try:
+        for start in range(0,len(order),ARRAY_ROW_CHUNK):
+            stop = min(start+ARRAY_ROW_CHUNK,len(order))
+            rows = order[start:stop]
+            block = frame.values[rows].astype(np.float32) if isinstance(frame,DiskPanel) else frame.iloc[rows][names].to_numpy(dtype=np.float32)
+            _require(not np.isinf(block).any(), "Numeric features overflow float32; inspect source scale before modeling")
+            _require(np.isnan(block[~observed[rows]]).all(), "Unobserved steps unexpectedly have values")
+            flat[start:stop] = block
+        for start in range(0,len(meta),ARRAY_ROW_CHUNK):
+            summary[start:start+ARRAY_ROW_CHUNK] = x[start:start+ARRAY_ROW_CHUNK,:1,:]
+        x.flush(); summary.flush()
+    except BaseException:
+        release_array(summary); release_array(x)
+        raise
     # Missing historical rows are explicit NaNs; TRAIN preprocessing supplies
     # finite model padding while the attention/pooling mask retains missingness.
-    _require(np.isnan(x[~mask]).all(), "Unobserved steps unexpectedly have values")
     report = {"snapshots": len(meta), "feature_count": len(names), "steps": steps,
               "unique_patient_dates": len(requests), "sequence_positions": len(grid),
               "reused_positions": len(grid) - len(requests),
@@ -325,7 +490,7 @@ def assemble_inputs(metadata, panel, specs, steps=12, date_policy="same_day_mont
               "feature_specs_sha256": stable_hash(specs)}
     return {"metadata": meta, "y": meta.RESP.to_numpy(dtype=np.int64),
             "indices": {s: np.flatnonzero(meta.SPLIT.to_numpy() == s) for s in ("train", "validation", "test")},
-            "X_summary": x[:, :1, :].copy(), "X_sequence": x,
+            "X_summary": summary, "X_sequence": x,
             "summary_mask": mask[:, :1].copy(), "sequence_mask": mask,
             "feature_names": names, "feature_specs": specs,
             "hashes": {"metadata_sha256": frame_hash(meta), "panel_sha256": frame_hash(frame),

@@ -2,6 +2,7 @@
 import copy
 import hashlib
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
@@ -49,13 +50,18 @@ class WorkflowTest(unittest.TestCase):
     def setUp(self):
         self.store = {}
         def save(table, artifacts):
+            artifacts = {k: v.read_bytes() if isinstance(v, Path) else v for k, v in artifacts.items()}
             if table in self.store and self.store[table] != artifacts:
                 raise ValueError("Immutable artifact table changed")
             self.store[table] = copy.deepcopy(artifacts)
-        def read(table, names):
+        def read(table, names, *, disk_names=(), output_dir=None):
             if table not in self.store or set(self.store[table]) != set(names):
                 raise ValueError("Missing artifact or manifest names mismatch")
-            return copy.deepcopy(self.store[table])
+            result = copy.deepcopy(self.store[table])
+            for name in disk_names:
+                target = Path(output_dir) / name
+                target.write_bytes(result[name]); result[name] = target
+            return result
         w.inputs, w.modeling, w.comparison = inputs, modeling, comparison
         w.save_artifacts, w.read_artifacts, w.table_exists = save, read, self.store.__contains__
         self.prefix = w.prefix("SYNTHETIC20261013")
