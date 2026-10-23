@@ -1,6 +1,6 @@
 # AutoML sequence experiments — bounded memory
 
-Current run: **R20261023_OLD_A**. The five self-contained notebooks in
+Current run: **R20261023_OLD_B**. The five self-contained notebooks in
 `notebooks/AutoML Sequential Features` default to the original V63 cohort,
 as requested for the first sequential AutoML run. Its population source is
 `DSVC_TAKEDA_TA_PRIVATE.DS_ML.TAK861_TX_READY_V63_MODEL_DATA`, projected to
@@ -15,6 +15,40 @@ computed reports. Presentation cleanup is checked for unchanged executable AST.
 Detailed allocation estimates, function changes and equivalence evidence are in
 [the memory review](MEMORY_REVIEW_20261023.md).
 
+The final cell of 03 reports TRAIN and VALIDATION lift; the final cell of 04
+reports VALIDATION lift. Notebook 05 reports VALIDATION by default, or retrospective
+TEST only when its explicit gate is enabled, followed by a separate final
+`Rank / Model / Lift@10%` table. Each compares the three seed-ensemble predictions
+with existing V63 LightGBM scores on exactly the same ordered snapshot keys and
+labels. Lift@10% is primary; 20% and 30% are secondary. Paired patient-cluster
+intervals are included. Equal primary lift receives equal rank.
+
+This is a reporting-only extension: no new LightGBM is trained or selected, and
+no external scores enter selection, preprocessing, training or checkpoint choice.
+Existing scores are read from
+`DSVC_TAKEDA_TA_PRIVATE.DS_ML.TAK861_TX_READY_V63_UNIVERSE_W_FEATURES_SCORED`,
+restricted to the requested split before collection. Missing keys, duplicate keys,
+label disagreements and nonfinite scores disable that split's existing-score
+comparison without stopping Transformer training/evaluation. Its table and ranking
+then contain only the three Transformer ensembles, explicitly labeled; no LightGBM
+value or rank is inferred. TEST gates and saved-artifact identity/corruption failures
+still stop execution. The first aligned score
+snapshot is saved under this run's `_EXISTING_V63_<SPLIT>` artifact and reused;
+reports are bound to metadata, prediction and reporting hashes. Historical fitting
+membership is unknown, so the comparison is descriptive, not proof of superior
+generalization. Live source access and score coverage remain to be checked remotely.
+
+Build the complete delivery with
+`python -m experiments.automl_sequence.build_lift_reporting`. This wraps the
+training builder and adds separately hashed reporting cells. The recovery changes
+produce a new implementation hash and `R20261023_OLD_B` prefix; do not relabel or
+overwrite artifacts from `R20261023_OLD_A`. Experiment settings are unchanged.
+Calling `build_notebooks`
+alone deliberately produces the original training-only notebooks. The shared score
+loader is extracted without edits from committed `baseline49.py` at `2106cf1`;
+unrelated working-tree edits are excluded. Repository history is needed only for
+building, never for running the five self-contained notebooks.
+
 | Notebook | Purpose |
 |---|---|
 |01|Resolve client universe, preserve patient partitions, rebuild counts, extract real historical AutoML tensors|
@@ -24,15 +58,18 @@ Detailed allocation estimates, function changes and equivalence evidence are in
 |05|Paired lift comparison, capacity metrics and conditional patient-cluster uncertainty|
 
 Use identical CONFIG/RUN_ID in all five notebooks. Each first code cell creates
-the Snowflake options with a blank PAT field for the separate runtime; credentials
-are not embedded in the distributed notebooks.
+the Snowflake options with all seven values blank for local entry in the separate
+runtime, as requested. Fill every field consistently in all five notebooks; the
+first cell fails before source access if anything remains blank. No secret lookup
+or connection credentials are embedded in the delivery. Never export a filled PAT.
 Table discovery requires a unique visible exact-name match. Supply the verified
 three-part table identifier if ambiguous; never guess a schema. CCSR lookup also
 requires a unique verified dictionary or explicit configured source.
 
 Only old FEATURE_MAP and PATIENT_SPLIT are reused as the fixed 1,028 count
 vocabulary and patient membership. No old tensors, scores, checkpoints or winner
-are inputs. All count values are reaggregated for the configured universe. New patients
+are training inputs. The reporting-only existing-score exception is described above.
+All count values are reaggregated for the configured universe. New patients
 use a seeded hash split; old patients never move between partitions. Added,
 removed and label-changed snapshots are audited; removed keys or shared-key label changes fail.
 Population and per-split totals must match `CONFIG['client_universe']['expected_population']`
@@ -43,6 +80,21 @@ The default original population was recovered from the October 6 audit receipt:
 16,256 / 8,712 / 941; validation 3,481 / 1,867 / 202; TEST 3,414 / 1,868 / 202.
 The previous `R20261016A` or interactive fallback INPUTS cannot be reused by the
 new implementation hash. The new run prefix prevents accidental replacement.
+
+Notebook 01 now places count construction and raw extraction in separate cells.
+Retry the extraction cell after an ordinary query failure to retain the count tensor
+in the active Python session. Raw extraction also keeps a validated SQLite spool
+under `SCRATCH_DIRECTORY/<run-prefix>_RAW_CHECKPOINT`, with complete chunks committed
+atomically. An interrupted chunk is retried; completed chunks are reused after a
+Python restart. Identity and corruption checks remain mandatory. This local recovery
+does not survive deletion/replacement of the cluster's ephemeral disk. Never run two
+copies of the same run concurrently. Retain the scratch directory until INPUTS is
+successfully published and verified. Queries still use bounded 5,000-key VALUES
+requests; no large full-population literal list is constructed.
+All chunk queries are checked against a 900,000-byte safety budget before the first
+source query; the largest query size is retained in the extraction receipt. This is
+a conservative application guard, not a claim about a universal server-side limit.
+Resume counters and the mixed-source-vintage limitation are also saved in INPUTS.
 
 For a new cohort change exactly three configuration groups, identically in all five notebooks:
 

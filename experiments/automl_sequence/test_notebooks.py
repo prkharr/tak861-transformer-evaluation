@@ -13,6 +13,7 @@ import re
 import sys
 import tokenize
 import types
+import tempfile
 import unittest
 from contextlib import contextmanager, redirect_stdout
 
@@ -72,6 +73,20 @@ def temporary_module_entries(entries):
 
 
 class NotebookDeliveryTests(unittest.TestCase):
+    def test_blank_connection_options_and_separate_extraction_cell(self):
+        config = notebook_code_parts(notebook(FILENAMES[0]))[0][1]
+        declaration = next(node for node in ast.parse(config).body if isinstance(node, ast.Assign)
+                           and isinstance(node.targets[0], ast.Name) and node.targets[0].id == 'sf_options')
+        self.assertTrue(all(value == '' for value in ast.literal_eval(declaration.value).values()))
+        self.assertNotIn('dbutils.secrets', config)
+        with self.assertRaisesRegex(ValueError, 'Fill the blank sf_options'):
+            exec(config.replace('"sfPassword": ""', '"sfPassword": "SYNTHETIC"'), dict(spark=object()))
+        sources = [''.join(cell['source']) for cell in notebook(FILENAMES[0])['cells']]
+        count_cell = next(i for i, text in enumerate(sources) if 'counts = population.load_client_counts' in text)
+        raw_cell = next(i for i, text in enumerate(sources) if 'AUTOML_SETUP = raw.build_raw_automl_inputs' in text)
+        self.assertLess(count_cell, raw_cell)
+        self.assertNotIn('population.load_client_counts', sources[raw_cell])
+
     def test_notebook_source_strips_only_comments_and_preserves_ast(self):
         source = ('"""Runtime documentation."""\n'
                   '# A development comment\n'
@@ -240,7 +255,7 @@ class NotebookDeliveryTests(unittest.TestCase):
             return pd.DataFrame(long_rows)
         output = io.StringIO()
         last_namespace = None
-        with temporary_module_entries(fake_modules), redirect_stdout(output):
+        with tempfile.TemporaryDirectory() as scratch, temporary_module_entries(fake_modules), redirect_stdout(output):
             for filename in FILENAMES:
                 config_cell, helper_cell, remaining = notebook_code_parts(notebook(filename))
                 namespace = {"__name__": "__synthetic_notebook__", "spark": object(),
@@ -249,10 +264,13 @@ class NotebookDeliveryTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "Enter your PAT"):
                     exec(compile(config_source, filename+":blank_pat", "exec"), namespace)
                 config_source = config_source.replace('"sfPassword": ""', '"sfPassword": "SYNTHETIC_NOT_A_CREDENTIAL"')
+                for field in ('sfUrl', 'sfUser', 'sfRole', 'sfWarehouse', 'sfDatabase', 'sfSchema'):
+                    config_source = config_source.replace('"' + field + '": ""', '"' + field + '": "SYNTHETIC"')
                 exec(compile(config_source, filename+":config", "exec"), namespace)
                 self.assertEqual(namespace['sf_options_dl_poc']['sfPassword'], 'SYNTHETIC_NOT_A_CREDENTIAL')
                 self.assertNotIn('synthetic', namespace['sf_options_dl_poc'])
                 namespace["CONFIG"] = copy.deepcopy(config)
+                namespace["SCRATCH_DIRECTORY"] = scratch
                 namespace["RUN_ID"] = "SYNTHETICNOTEBOOKS"
                 exec(compile(helper_cell[1], filename+":embedded", "exec"), namespace)
                 namespace["display"] = lambda obj: displays.append(copy.deepcopy(obj))
@@ -267,6 +285,17 @@ class NotebookDeliveryTests(unittest.TestCase):
                 fc.build_source_frames=lambda *args,**kwargs: dict(tables,manifest={'synthetic_spark_aggregate':True},
                     cached_aggregates=types.SimpleNamespace(unpersist=lambda **kw:None))
                 for index, source in remaining:
+                    if 'def existing_lift_report(' in source:
+                        marker = ('for evaluation_split in ' if filename.startswith(('03', '04'))
+                                  else 'evaluation_split = report["split"]')
+                        setup_source, body_source = source.split(marker, 1)
+                        exec(compile(setup_source, filename+':lift_setup', 'exec'), namespace)
+                        source_scores = meta[['PATIENT_ID', 'END_DT', 'RESP']].copy()
+                        source_scores['SCORE'] = .1 + .7 * source_scores.RESP
+                        if filename.startswith('03'):
+                            source_scores = source_scores.loc[~meta.SPLIT.eq('train')]
+                        namespace['read_existing_score_table'] = lambda table: source_scores.iloc[::-1].copy()
+                        source = marker + body_source
                     exec(compile(source, filename+f":cell{index}", "exec"), namespace)
                 last_namespace = namespace
         self.assertEqual(queried, ["PATIENT_SPLIT", "FEATURE_MAP"])
@@ -279,6 +308,13 @@ class NotebookDeliveryTests(unittest.TestCase):
         self.assertTrue(any(name.endswith("_VALIDATION_COMPARISON") for name in store))
         self.assertTrue(any(name.endswith("_RELIANCE") for name in store))
         self.assertFalse(any(name.endswith("_FINAL_TEST") for name in store))
+        if 'lift_comparison' in last_namespace:
+            self.assertIn('Existing scores unavailable for TRAIN', output.getvalue())
+            self.assertEqual(last_namespace['lift_comparison']['split'], 'validation')
+            ranking = last_namespace['lift_reporting'].ranking_table(last_namespace['lift_comparison'])
+            self.assertEqual(len(ranking), 4)
+            self.assertEqual(list(ranking.columns), ['Rank', 'Model', 'Lift@10%'])
+            self.assertFalse(any('_EXISTING_V63_TEST' in name for name in store))
         self.assertIn("No independent OOT conclusion", output.getvalue())
         self.assertGreater(len(displays), 10)
         # Displayed frames are aggregates or feature ledgers, never patient rows.

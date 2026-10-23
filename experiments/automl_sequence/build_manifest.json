@@ -1,33 +1,37 @@
 {
-  "implementation_sha256": "69adef9395638375cd5497f598acce84c20c6dff886279601c4953df0e95303b",
-  "source_sha256": "86f3e68006f8bcd6474b383724520be556840ca8fdcc16d265763cb94476069c",
+  "implementation_sha256": "b0bfd8af64692fc623232116197fd1d64848c7529088eacd4343f5be0c41ed83",
+  "source_sha256": "ed97c874b2040d9c91d2de7d6cf844b90d8e4f74b0520f46e83878ba5b3d3cb9",
   "notebooks": [
     {
       "path": "notebooks\\AutoML Sequential Features\\01_tensor_initialization_AutoML.ipynb",
-      "sha256": "6fb50710a82e14209a8a43f5a8bbd2c7fdb3d7b34e96bf002aeb65f6b97bfb72",
-      "cells": 5
+      "sha256": "13ddf053934e2158424a93efcc3abf78bcc224fdbfac5b40a52bef2dc68711ae",
+      "cells": 6
     },
     {
       "path": "notebooks\\AutoML Sequential Features\\02_patient_level_split_AutoML.ipynb",
-      "sha256": "90a6388d088fded53dc775c06000712b7375f33e62c12558f15c420929a0303c",
+      "sha256": "5cd987c37ddcddf31337bbaf4132cbe9353469f8cb480b269cb4dec72af9b6d4",
       "cells": 4
     },
     {
       "path": "notebooks\\AutoML Sequential Features\\03_transformer_training_AutoML.ipynb",
-      "sha256": "112ac53dfd0c1b33bff5ad2fceee840ebb86266db8bd6f0a2d84542fde818403",
-      "cells": 3
+      "sha256": "d58364ffdb6eeb4d98a70956ea5e0fe137fbc4e1cf594956749dd7660013409f",
+      "cells": 4
     },
     {
       "path": "notebooks\\AutoML Sequential Features\\04_transformer_evaluation_AutoML.ipynb",
-      "sha256": "0d79c167abd46a59cf475993c617995367f3d37355a42ff318ed79e173b17e66",
-      "cells": 5
+      "sha256": "e8bd00e626ba99bb5b7621c54e98ab4cb14eca69d98af6e40aff8ddbe4401f95",
+      "cells": 6
     },
     {
       "path": "notebooks\\AutoML Sequential Features\\05_model_comparison_AutoML.ipynb",
-      "sha256": "a43c007455615014d0fb43ab31fc2786e1c2f79941b53f64078128ba745a50e4",
-      "cells": 4
+      "sha256": "92c8483a2c9cea5872c44743f138a212766e38d1ba49019a4813c4b559173633",
+      "cells": 6
     }
   ],
   "generated_from": "experiments/automl_sequence/build_notebooks.py",
-  "clinical_execution": false
+  "clinical_execution": false,
+  "reporting_sha256": "9cbf44dafe8cbf9a6c12f57f21887a94e790c7613e4c12178378ac2e214f9548",
+  "reporting_generator": "experiments/automl_sequence/build_lift_reporting.py",
+  "existing_score_loader_revision": "2106cf1",
+  "existing_score_loader_sha256": "9e072d9bfd63dd7aa2898d25556309f4cba5d801f93df68bba0dcc7c5aa8dab4"
 }

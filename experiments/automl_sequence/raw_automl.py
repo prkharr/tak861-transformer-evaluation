@@ -212,14 +212,26 @@ def _frame(value):
     return result
 
 
+MAX_REQUEST_QUERY_BYTES = 900000
+
+
+def _request_query(template, batch):
+    values = ["('"+patient.replace("'", "''")+"','"+date.strftime('%Y-%m-%d')+"')"
+              for patient, date in batch.itertuples(index=False, name=None)]
+    request_sql = "SELECT column1::VARCHAR AS PATIENT_ID,TO_DATE(column2::VARCHAR) AS AS_OF_DATE FROM VALUES " + ','.join(values)
+    query = template.replace('{request_sql}', request_sql)
+    if len(query.encode('utf-8')) > MAX_REQUEST_QUERY_BYTES:
+        raise ValueError('AutoML request query exceeds the 900000-byte safety budget; review source transport before execution')
+    return query
+
+
 def _read_long(read_query, requests, template, chunk_size):
     """Yield bounded aggregate frames; never collect all query results."""
     for start in range(0, len(requests), chunk_size):
         batch = requests.iloc[start:start+chunk_size]
-        values = ["('"+patient.replace("'", "''")+"','"+date.strftime('%Y-%m-%d')+"')"
-                  for patient, date in batch.itertuples(index=False, name=None)]
-        request_sql = "SELECT column1::VARCHAR AS PATIENT_ID,TO_DATE(column2::VARCHAR) AS AS_OF_DATE FROM VALUES " + ','.join(values)
-        result = read_query(template.replace('{request_sql}', request_sql))
+        query = _request_query(template, batch)
+        print('AutoML request batch keys:', len(batch), 'query bytes:', len(query.encode('utf-8')))
+        result = read_query(query)
         if hasattr(result, 'toLocalIterator') and not isinstance(result,pd.DataFrame):
             columns = list(result.columns)
             # SQL's UNION guarantees nulls in these numeric columns. Whole-query
@@ -249,77 +261,150 @@ def _read_long(read_query, requests, template, chunk_size):
         print("AutoML extraction requests completed:",min(start+chunk_size,len(requests)),"/",len(requests))
 
 
-def _spool_long(read_query, requests, template, chunk_size, train_patients, db):
-    """Validate once while writing an indexed private disk spool.
+def _insert_raw_part(part, db, columns, chunk_no):
+    if not {'PATIENT_ID','AS_OF_DATE','ROW_KIND','CATEGORY','VALUE','RECENT_VALUE','MAX_EVENT_DATE','AGE','AGE_CONFLICT'}.issubset(part):
+        raise ValueError("Raw extraction response lacks required long-form fields")
+    if columns is None:
+        columns = list(part.columns)
+    elif columns != list(part.columns):
+        raise ValueError("Raw extraction response columns changed between batches")
+    if part.PATIENT_ID.isna().any():
+        raise ValueError("Raw extraction contains null patient keys")
+    part['PATIENT_ID'] = part.PATIENT_ID.map(str)
+    for col in ('AS_OF_DATE','MAX_EVENT_DATE'):
+        part[col] = pd.to_datetime(part[col],errors='raise')
+        if part[col].dt.tz is not None or not part[col].dropna().eq(part[col].dropna().dt.normalize()).all():
+            raise ValueError("Expected exact date-grain raw source dates")
+    if not part.ROW_KIND.isin(['COVERAGE','FEATURE']).all():
+        raise ValueError("Unknown raw extraction record kind")
+    if part.AS_OF_DATE.isna().any() or (part.MAX_EVENT_DATE.notna() & part.MAX_EVENT_DATE.gt(part.AS_OF_DATE)).any():
+        raise ValueError("Invalid or future raw source date")
+    if (part.MAX_EVENT_DATE.notna() & part.MAX_EVENT_DATE.lt(part.AS_OF_DATE-pd.DateOffset(months=12))).any():
+        raise ValueError("Raw source event evidence predates the 12-month window")
+    records = []
+    for row in part.itertuples(index=False,name=None):
+        item = dict(zip(columns,row))
+        feature = item['ROW_KIND'] == 'FEATURE'
+        category = item['CATEGORY']
+        event = item['MAX_EVENT_DATE']
+        if feature:
+            if pd.isna(category) or not str(category).strip():
+                raise ValueError("Raw feature category must be explicit")
+            try:
+                value,recent = float(item['VALUE']),float(item['RECENT_VALUE'])
+            except (TypeError,ValueError,OverflowError) as exc:
+                raise ValueError("Raw distinct counts must be finite nonnegative integers") from exc
+            if not np.isfinite([value,recent]).all() or value <= 0 or recent < 0 or value != np.floor(value) or recent != np.floor(recent) or recent > value:
+                raise ValueError("Raw distinct counts must be finite nonnegative integers with valid annual/recent relationship")
+            if pd.isna(event):
+                raise ValueError("Feature counts require in-window event evidence for a requested key")
+            age=conflict=None
+        else:
+            value=recent=None
+            age = None if pd.isna(item['AGE']) else float(item['AGE'])
+            conflict = None if pd.isna(item['AGE_CONFLICT']) else float(item['AGE_CONFLICT'])
+            if age is not None and (not np.isfinite(age) or age < 0):
+                raise ValueError("Invalid raw age")
+        records.append((item['PATIENT_ID'],item['AS_OF_DATE'].strftime('%Y-%m-%d'),item['ROW_KIND'],str(category) if feature else '',
+            inputs.canonical_row_bytes(row),value,recent,None if pd.isna(event) else event.strftime('%Y-%m-%d'),age,conflict,chunk_no))
+    try:
+        db.executemany('INSERT INTO raw VALUES (?,?,?,?,?,?,?,?,?,?,?)',records)
+    except sqlite3.IntegrityError as exc:
+        raise ValueError("Duplicate raw coverage keys or aggregated raw feature rows") from exc
+    return columns, len(part)
 
-    raw_json stores exactly the bytes used by inputs.frame_hash before sorting;
-    SQLite supplies deterministic global key order without a full pandas sort.
-    """
+
+def _checkpoint_chunk_hash(db, chunk_no):
+    digest = hashlib.sha256()
+    columns = db.execute("SELECT value FROM state WHERE key='columns'").fetchone()
+    if columns is None:
+        raise ValueError('Extraction checkpoint columns are unavailable')
+    digest.update(columns[0].encode())
+    count = 0
+    for row in db.execute('SELECT p,d,k,c,raw_json,v,r,e,a,ac FROM raw WHERE chunk_no=? ORDER BY p,d,k,c', (chunk_no,)):
+        values = list(row)
+        values[4] = values[4].hex()
+        digest.update(json.dumps(values, separators=(',', ':'), allow_nan=False).encode() + b'\n')
+        count += 1
+    return count, digest.hexdigest()
+
+
+def _spool_long(read_query, requests, template, chunk_size, train_patients, db, run_identity=None):
+    """Atomically commit validated chunks; reuse only exact intact checkpoints."""
     db.execute('PRAGMA temp_store=FILE')
     db.execute('PRAGMA cache_size=-16384')
-    db.execute('CREATE TABLE raw(p TEXT,d TEXT,k TEXT,c TEXT,raw_json BLOB,v REAL,r REAL,e TEXT,a REAL,ac REAL, PRIMARY KEY(p,d,k,c)) WITHOUT ROWID')
-    db.execute('CREATE TABLE train(p TEXT PRIMARY KEY) WITHOUT ROWID')
-    db.executemany('INSERT INTO train VALUES (?)',((p,) for p in sorted(train_patients)))
-    columns = None
-    total = 0
-    needed = {'PATIENT_ID','AS_OF_DATE','ROW_KIND','CATEGORY','VALUE','RECENT_VALUE','MAX_EVENT_DATE','AGE','AGE_CONFLICT'}
-    for part in _read_long(read_query,requests,template,chunk_size):
-        if not needed.issubset(part):
-            raise ValueError("Raw extraction response lacks required long-form fields")
-        if columns is None:
-            columns = list(part.columns)
-        elif columns != list(part.columns):
-            raise ValueError("Raw extraction response columns changed between batches")
-        if part.PATIENT_ID.isna().any():
-            raise ValueError("Raw extraction contains null patient keys")
-        part['PATIENT_ID'] = part.PATIENT_ID.map(str)
-        for col in ('AS_OF_DATE','MAX_EVENT_DATE'):
-            part[col] = pd.to_datetime(part[col],errors='raise')
-            if part[col].dt.tz is not None or not part[col].dropna().eq(part[col].dropna().dt.normalize()).all():
-                raise ValueError("Expected exact date-grain raw source dates")
-        if not part.ROW_KIND.isin(['COVERAGE','FEATURE']).all():
-            raise ValueError("Unknown raw extraction record kind")
-        if part.AS_OF_DATE.isna().any() or (part.MAX_EVENT_DATE.notna() & part.MAX_EVENT_DATE.gt(part.AS_OF_DATE)).any():
-            raise ValueError("Invalid or future raw source date")
-        if (part.MAX_EVENT_DATE.notna() & part.MAX_EVENT_DATE.lt(part.AS_OF_DATE-pd.DateOffset(months=12))).any():
-            raise ValueError("Raw source event evidence predates the 12-month window")
-        records = []
-        for row in part.itertuples(index=False,name=None):
-            item = dict(zip(columns,row))
-            feature = item['ROW_KIND'] == 'FEATURE'
-            category = item['CATEGORY']
-            event = item['MAX_EVENT_DATE']
-            if feature:
-                if pd.isna(category) or not str(category).strip():
-                    raise ValueError("Raw feature category must be explicit")
-                try:
-                    value,recent = float(item['VALUE']),float(item['RECENT_VALUE'])
-                except (TypeError,ValueError,OverflowError) as exc:
-                    raise ValueError("Raw distinct counts must be finite nonnegative integers") from exc
-                if not np.isfinite([value,recent]).all() or value <= 0 or recent < 0 or value != np.floor(value) or recent != np.floor(recent) or recent > value:
-                    raise ValueError("Raw distinct counts must be finite nonnegative integers with valid annual/recent relationship")
-                if pd.isna(event):
-                    raise ValueError("Feature counts require in-window event evidence for a requested key")
-                age=conflict=None
-            else:
-                value=recent=None
-                age = None if pd.isna(item['AGE']) else float(item['AGE'])
-                conflict = None if pd.isna(item['AGE_CONFLICT']) else float(item['AGE_CONFLICT'])
-                if age is not None and (not np.isfinite(age) or age < 0):
-                    raise ValueError("Invalid raw age")
-            records.append((item['PATIENT_ID'],item['AS_OF_DATE'].strftime('%Y-%m-%d'),item['ROW_KIND'],str(category) if feature else '',
-                inputs.canonical_row_bytes(row),value,recent,None if pd.isna(event) else event.strftime('%Y-%m-%d'),age,conflict))
+    max_query_bytes = max((len(_request_query(template, requests.iloc[start:start+chunk_size]).encode('utf-8'))
+                           for start in range(0, len(requests), chunk_size)), default=0)
+    identity = dict(schema=1, run_identity=run_identity,
+                    template_sha256=hashlib.sha256(template.encode()).hexdigest(),
+                    requests_sha256=inputs.frame_hash(requests), chunk_size=chunk_size,
+                    train_patients_sha256=inputs.stable_hash(sorted(train_patients)))
+    identity_text = json.dumps(identity, sort_keys=True, separators=(',', ':'))
+    with db:
+        db.execute('CREATE TABLE IF NOT EXISTS state(key TEXT PRIMARY KEY,value TEXT NOT NULL) WITHOUT ROWID')
+        previous = db.execute("SELECT value FROM state WHERE key='identity'").fetchone()
+        if previous is not None and previous[0] != identity_text:
+            location = db.execute('PRAGMA database_list').fetchone()[2]
+            raise ValueError('Extraction checkpoint identity differs; use a new run checkpoint directory. Existing checkpoint: ' + os.path.dirname(location))
+        db.execute('CREATE TABLE IF NOT EXISTS raw(p TEXT,d TEXT,k TEXT,c TEXT,raw_json BLOB,v REAL,r REAL,e TEXT,a REAL,ac REAL,chunk_no INTEGER, PRIMARY KEY(p,d,k,c)) WITHOUT ROWID')
+        db.execute('CREATE TABLE IF NOT EXISTS train(p TEXT PRIMARY KEY) WITHOUT ROWID')
+        db.execute('CREATE TABLE IF NOT EXISTS chunks(chunk_no INTEGER PRIMARY KEY,row_count INTEGER NOT NULL,sha256 TEXT NOT NULL)')
+        db.execute('CREATE INDEX IF NOT EXISTS raw_by_chunk ON raw(chunk_no,p,d,k,c)')
+        if previous is None:
+            db.executemany('INSERT INTO train VALUES (?)', ((p,) for p in sorted(train_patients)))
+            db.execute("INSERT INTO state VALUES ('identity',?)", (identity_text,))
+    if db.execute('PRAGMA quick_check').fetchone()[0] != 'ok':
+        raise ValueError('Extraction checkpoint database integrity check failed')
+    if db.execute('SELECT 1 FROM raw LEFT JOIN chunks USING(chunk_no) WHERE chunks.chunk_no IS NULL LIMIT 1').fetchone():
+        raise ValueError('Extraction checkpoint has rows without a completed chunk')
+    if [row[0] for row in db.execute('SELECT p FROM train ORDER BY p')] != sorted(train_patients):
+        raise ValueError('Extraction checkpoint TRAIN membership differs')
+    columns_row = db.execute("SELECT value FROM state WHERE key='columns'").fetchone()
+    columns = None if columns_row is None else json.loads(columns_row[0])
+    total, resumed, extracted = 0, 0, 0
+    number_chunks = int(np.ceil(len(requests)/chunk_size))
+    if db.execute('SELECT 1 FROM chunks WHERE chunk_no<0 OR chunk_no>=? LIMIT 1', (number_chunks,)).fetchone():
+        raise ValueError('Extraction checkpoint has an unexpected chunk index')
+    for chunk_no, start in enumerate(range(0, len(requests), chunk_size)):
+        batch = requests.iloc[start:start+chunk_size]
         try:
-            db.executemany('INSERT INTO raw VALUES (?,?,?,?,?,?,?,?,?,?)',records)
-        except sqlite3.IntegrityError as exc:
-            raise ValueError("Duplicate raw coverage keys or aggregated raw feature rows") from exc
-        total += len(part)
-        db.commit()
+            db.execute('BEGIN IMMEDIATE')
+            saved = db.execute('SELECT row_count,sha256 FROM chunks WHERE chunk_no=?', (chunk_no,)).fetchone()
+            if saved is not None:
+                if columns is None or tuple(saved) != _checkpoint_chunk_hash(db, chunk_no):
+                    raise ValueError('Extraction checkpoint content hash mismatch')
+                total += saved[0]
+                resumed += 1
+            else:
+                chunk_rows = 0
+                for part in _read_long(read_query, batch, template, chunk_size):
+                    columns, rows = _insert_raw_part(part, db, columns, chunk_no)
+                    chunk_rows += rows
+                if columns is None or not chunk_rows:
+                    raise ValueError('Raw extraction response lacks required long-form fields')
+                returned = pd.read_sql_query("SELECT p AS PATIENT_ID,d AS AS_OF_DATE FROM raw WHERE chunk_no=? AND k='COVERAGE'", db, params=(chunk_no,))
+                returned['AS_OF_DATE'] = pd.to_datetime(returned.AS_OF_DATE)
+                joined = batch.merge(returned, on=inputs.KEYS, how='outer', indicator=True, validate='one_to_one')
+                if not joined._merge.eq('both').all():
+                    raise ValueError('Raw extraction did not return exact requested coverage keys')
+                if db.execute("SELECT 1 FROM raw f LEFT JOIN raw c ON f.p=c.p AND f.d=c.d AND c.k='COVERAGE' AND f.chunk_no=c.chunk_no WHERE f.chunk_no=? AND f.k='FEATURE' AND (c.p IS NULL OR c.e IS NULL) LIMIT 1", (chunk_no,)).fetchone():
+                    raise ValueError('Feature counts require in-window event evidence for a requested key')
+                db.execute("INSERT OR REPLACE INTO state VALUES ('columns',?)", (json.dumps(columns),))
+                count, digest = _checkpoint_chunk_hash(db, chunk_no)
+                db.execute('INSERT INTO chunks VALUES (?,?,?)', (chunk_no, count, digest))
+                total += count
+                extracted += 1
+            db.commit()
+        except BaseException:
+            db.rollback()
+            raise
+        print('AutoML validated chunks complete:', chunk_no+1, '/', number_chunks,
+              'reused:', resumed, 'queried:', extracted)
     if columns is None:
-        raise ValueError("Raw extraction response lacks required long-form fields")
+        raise ValueError('Raw extraction response lacks required long-form fields')
     # Build once on disk: category materialization below must not scan the full
     # extraction again for each of the up to 255 retained category pairs.
-    db.execute('CREATE INDEX raw_by_category ON raw(k,c,p,d)')
+    db.execute('CREATE INDEX IF NOT EXISTS raw_by_category ON raw(k,c,p,d)')
     coverage = pd.read_sql_query("SELECT p AS PATIENT_ID,d AS AS_OF_DATE,e AS MAX_EVENT_DATE,a AS AGE,ac AS AGE_CONFLICT FROM raw WHERE k='COVERAGE' ORDER BY p,d",db)
     coverage['AS_OF_DATE']=pd.to_datetime(coverage.AS_OF_DATE)
     coverage['MAX_EVENT_DATE']=pd.to_datetime(coverage.MAX_EVENT_DATE)
@@ -334,10 +419,11 @@ def _spool_long(read_query, requests, template, chunk_size, train_patients, db):
     h=hashlib.sha256(json.dumps(columns,separators=(',',':')).encode())
     for (payload,) in db.execute('SELECT raw_json FROM raw ORDER BY p,d,k,c'):
         h.update(payload)
-    return coverage,support,h.hexdigest(),total
+    return coverage,support,h.hexdigest(),total,dict(resumed_chunks=resumed, extracted_chunks=extracted,
+                                                   max_chunk_query_bytes=max_query_bytes)
 
 
-def _build_raw_automl_inputs(read_query, metadata, source_config, db):
+def _build_raw_automl_inputs(read_query, metadata, source_config, db, run_identity=None):
     """Extract raw long rows once per unique patient/date; return AUTOML_SETUP.
 
     Vocabulary is label-blind and restricted to TRAIN patients. If max_features
@@ -359,8 +445,8 @@ def _build_raw_automl_inputs(read_query, metadata, source_config, db):
     template = raw_sql_template(cfg)
     started = time.perf_counter()
     train_patients = set(meta.loc[meta.SPLIT.eq('train'),'PATIENT_ID'])
-    coverage,support,long_hash,long_rows = _spool_long(read_query, requests, template,
-        cfg['chunk_size'], train_patients, db)
+    coverage,support,long_hash,long_rows,checkpoint_receipt = _spool_long(read_query, requests, template,
+        cfg['chunk_size'], train_patients, db, run_identity=run_identity)
     candidates = []
     for category in sorted(support):
         for measure in ('count','recent_pct'):
@@ -448,6 +534,8 @@ def _build_raw_automl_inputs(read_query, metadata, source_config, db):
     removed = [item for item in candidates if item['name'] not in set(names)]
     receipt = dict(execution_status='raw_extraction_completed_on_configured_sources',
         query_count=int(np.ceil(len(requests)/cfg['chunk_size'])),requested_unique_keys=len(requests),
+        checkpoint=dict(enabled=run_identity is not None, **checkpoint_receipt),
+        max_chunk_query_bytes=checkpoint_receipt['max_chunk_query_bytes'],
         returned_long_rows=long_rows,observed_window_keys=int(observed.sum()),unavailable_window_keys=int((~observed).sum()),
         age_conflict_keys=int(pd.to_numeric(coverage.AGE_CONFLICT,errors='raise').fillna(0).sum()),
         original_train_candidate_features=len(candidates)+1,retained_input_features=len(specs),
@@ -463,8 +551,23 @@ def _build_raw_automl_inputs(read_query, metadata, source_config, db):
                 extractor=None,sql_template=None,receipt=receipt)
 
 
-def build_raw_automl_inputs(read_query, metadata, source_config=None):
-    """One extraction pass into a bounded disk spool; no full long-frame collect."""
+def build_raw_automl_inputs(read_query, metadata, source_config=None, *, checkpoint_directory=None, run_identity=None):
+    """Bounded spool, optionally durable across Python restarts on the same disk.
+
+    Completed chunks are validated and committed atomically. Local scratch does
+    not survive cluster replacement; a preserved checkpoint uses the original
+    extracted content for completed chunks and current LATEST sources for new
+    chunks. It does not imply a transactional source snapshot.
+    """
+    if checkpoint_directory is not None:
+        if not isinstance(run_identity, str) or not run_identity.strip():
+            raise ValueError('Persistent extraction checkpoints require an explicit run identity')
+        directory = os.path.abspath(os.fspath(checkpoint_directory))
+        os.makedirs(directory, exist_ok=True)
+        with closing(sqlite3.connect(os.path.join(directory, 'raw.sqlite'))) as db:
+            return _build_raw_automl_inputs(read_query, metadata, source_config, db, run_identity=run_identity)
+    if run_identity is not None:
+        raise ValueError('A run identity requires a persistent checkpoint directory')
     with tempfile.TemporaryDirectory(prefix='tak861-raw-spool-') as scratch:
         with closing(sqlite3.connect(os.path.join(scratch,'raw.sqlite'))) as db:
             return _build_raw_automl_inputs(read_query,metadata,source_config,db)

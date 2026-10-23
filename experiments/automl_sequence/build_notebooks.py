@@ -48,16 +48,19 @@ def build():
     # Enter your PAT locally in each notebook before running this cell.
     # Keep the PAT out of Git and shared notebook exports. Do not print this dictionary.
     sf_options = {
-        "sfUrl": "KOMODOHEALTH-STD_APRCRWRZYNKCIWYRUD.snowflakecomputing.com",
-        "sfUser": "PRAKHAR.PATHAK@TAKEDA.COM",
+        "sfUrl": "",
+        "sfUser": "",
         "sfPassword": "",  # Paste your PAT here in Databricks.
-        "sfRole": "TAKEDA_TA_SENTINEL_ROLE",
-        "sfWarehouse": "WH_ADHOC",
-        "sfDatabase": "DSVC_TAKEDA_TA_PRIVATE",
-        "sfSchema": "TAK861",
+        "sfRole": "",
+        "sfWarehouse": "",
+        "sfDatabase": "",
+        "sfSchema": "",
     }
     if not sf_options["sfPassword"].strip():
         raise ValueError("Enter your PAT in sf_options['sfPassword'] in this notebook's first code cell.")
+    missing_options = [key for key, value in sf_options.items() if not str(value).strip()]
+    if missing_options:
+        raise ValueError("Fill the blank sf_options fields before execution: " + ", ".join(missing_options))
     # Local ephemeral scratch, never DBFS/object storage, for memory-mapped arrays.
     # Override this path with a verified large local volume if /local_disk0 is unavailable.
     SCRATCH_DIRECTORY = ("/local_disk0/tmp/tak861_automl" if os.path.isdir("/local_disk0")
@@ -68,7 +71,7 @@ def build():
     with tempfile.TemporaryFile(dir=SCRATCH_DIRECTORY) as scratch_probe:
         scratch_probe.write(b"scratch-write-check")
     os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
-    RUN_ID = "R20261023_OLD_A"  # Fresh implementation identity; do not overwrite earlier artifacts.
+    RUN_ID = "R20261023_OLD_B"  # Fresh implementation identity; do not overwrite earlier artifacts.
     SOURCE_PREFIX = "TAK861_TX_READY_V63_DL_POC"
     CONFIG = {
         "client_universe": {"table": "DSVC_TAKEDA_TA_PRIVATE.DS_ML.TAK861_TX_READY_V63_MODEL_DATA",
@@ -244,8 +247,12 @@ def build():
             print("Count universe:", len(counts["features"]), "Historical extraction keys:", len(requests),
                   "Tensor positions:", len(date_grid), "Positions served by reusable keys:", len(date_grid)-len(requests))
             print("Count provenance:", counts["contract"]["provenance_status"])
+        '''), code('''
+        if not REUSE_SAVED_INPUTS:
             if AUTOML_SETUP is None:
-                AUTOML_SETUP = raw.build_raw_automl_inputs(read_query, metadata, source_config=CONFIG["raw_automl"])
+                AUTOML_SETUP = raw.build_raw_automl_inputs(read_query, metadata, source_config=CONFIG["raw_automl"],
+                    checkpoint_directory=os.path.join(SCRATCH_DIRECTORY, RUN_PREFIX + "_RAW_CHECKPOINT"),
+                    run_identity=RUN_PREFIX)
                 memory_receipt("raw_automl_panel_complete")
                 aggregate(pd.DataFrame([{k: v for k, v in AUTOML_SETUP["receipt"].items() if np.isscalar(v) or v is None}]))
             feature_specs = inp.validate_feature_specs(AUTOML_SETUP["feature_specs"])
@@ -267,6 +274,9 @@ def build():
             memory_receipt("automl_tensors_complete")
             data = wf.attach_count_reference(data, counts["X"], counts["metadata"], counts["contract"], valid=counts["valid"])
             data["report"]["source_activity_alignment"] = population.check_activity_alignment(data)
+            if AUTOML_SETUP.get("receipt", {}).get("checkpoint"):
+                data["report"]["extraction_checkpoint"] = AUTOML_SETUP["receipt"]["checkpoint"]
+                data["report"]["extraction_source_vintage"] = "LATEST sources; resumed chunks retain original reads; not a transactional source snapshot"
             data["manifest"] = wf.save_inputs(RUN_PREFIX, data, panel_manifest, CONFIG, IMPLEMENTATION_SHA256)
             memory_receipt("inputs_persisted")
             aggregate(pd.DataFrame([data["report"], panel_manifest["extraction_report"]]))
