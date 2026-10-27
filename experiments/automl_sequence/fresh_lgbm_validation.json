@@ -1,0 +1,20 @@
+{
+  "python": "3.12.14",
+  "interpreter": "C:\\Users\\prakhar\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe",
+  "packages": {
+    "numpy": "2.5.3",
+    "pandas": "3.0.1",
+    "lightgbm": "4.6.0",
+    "scikit-learn": "1.9.1"
+  },
+  "full_suite_summary": [
+    "Ran 125 tests in 80.585s",
+    "OK"
+  ],
+  "final_targeted_summary": [
+    "Ran 10 tests in 0.964s",
+    "OK"
+  ],
+  "notebook_sha256": "f8fc264168bfc5cc2eed8417d0297e8bee8b6f003a72f43bd299a58f221d37ab",
+  "clinical_execution": false
+}

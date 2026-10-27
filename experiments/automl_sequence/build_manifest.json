@@ -24,8 +24,8 @@
     },
     {
       "path": "notebooks\\AutoML Sequential Features\\05_model_comparison_AutoML.ipynb",
-      "sha256": "92c8483a2c9cea5872c44743f138a212766e38d1ba49019a4813c4b559173633",
-      "cells": 6
+      "sha256": "f8fc264168bfc5cc2eed8417d0297e8bee8b6f003a72f43bd299a58f221d37ab",
+      "cells": 10
     }
   ],
   "generated_from": "experiments/automl_sequence/build_notebooks.py",
@@ -33,5 +33,10 @@
   "reporting_sha256": "9cbf44dafe8cbf9a6c12f57f21887a94e790c7613e4c12178378ac2e214f9548",
   "reporting_generator": "experiments/automl_sequence/build_lift_reporting.py",
   "existing_score_loader_revision": "2106cf1",
-  "existing_score_loader_sha256": "9e072d9bfd63dd7aa2898d25556309f4cba5d801f93df68bba0dcc7c5aa8dab4"
+  "existing_score_loader_sha256": "9e072d9bfd63dd7aa2898d25556309f4cba5d801f93df68bba0dcc7c5aa8dab4",
+  "fresh_lgbm_extension": {
+    "source_sha256": "6aa4b8876b9366d7513cfe5955ae406224ed5f887d38055cb72f3b515a1b1883",
+    "generator": "experiments/automl_sequence/build_fresh_lgbm.py",
+    "clinical_execution": false
+  }
 }

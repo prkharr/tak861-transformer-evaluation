@@ -156,6 +156,8 @@ display(lift_reporting.ranking_table(lift_comparison))
                     existing_score_loader_sha256=hashlib.sha256(loader.encode()).hexdigest())
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(manifest, indent=2))
+    from experiments.automl_sequence.build_fresh_lgbm import build as append_fresh_baseline
+    append_fresh_baseline()
 
 
 if __name__ == "__main__":

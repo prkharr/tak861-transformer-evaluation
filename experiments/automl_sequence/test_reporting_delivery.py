@@ -117,8 +117,10 @@ class ReportingDeliveryTests(unittest.TestCase):
             elif stage == "04":
                 self.assertIn('for evaluation_split in ("validation",):', sources[-1])
             elif stage == "05":
-                self.assertIn("ranking_table(lift_comparison)", sources[-1])
-                self.assertIn("allow_test=RUN_FINAL_TEST, selection_locked=True", sources[-2])
+                self.assertTrue(any("ranking_table(lift_comparison)" in source for source in sources))
+                self.assertTrue(any("allow_test=RUN_FINAL_TEST, selection_locked=True" in source for source in sources))
+                self.assertIn("fresh_lgbm.ranking(fresh_result)", sources[-1])
+                self.assertTrue(any("FRESH_LGBM_EVALUATE_TEST = False" in source for source in sources))
                 self.assertTrue(any("RUN_FINAL_TEST = False" in source for source in sources))
             if stage in ("03", "04", "05"):
                 retained = next(source for source in sources if "lift_metadata = data" in source)
