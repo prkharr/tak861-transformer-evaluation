@@ -1,0 +1,23 @@
+{
+  "date": "2026-10-30",
+  "status": "APPROVED_CONDITIONS_VERIFIED",
+  "review_sections": [
+    31,
+    32,
+    33
+  ],
+  "clinical_results_reviewed": false,
+  "core_implementation_sha256": "9eb0620c84a7363ef0d53269a75eef203a4ce9737c2e944abc68450589b5e17a",
+  "production_reporting_sha256": "5c84881ea14258a28c91df6bb41add5fc83a4c5e9877ac07681b1b69ed10f69d",
+  "conditions": {
+    "M1": "PASS: final manifest and receipt agree; 160 synthetic tests, no failures/errors",
+    "M2": "Core publication pinned at d3eac3a4a986d9c3d3234282dc7699bbdeb9f35a; final publication to be pinned in follow-up metadata commit",
+    "B1": "Report artifact uses full identity digest including reporting and prediction hashes",
+    "B6": "All five regenerated together; core 01-04 unchanged; hardened production source embedded and tested"
+  },
+  "limitations": [
+    "No clinical execution",
+    "Validation is development evaluation; TEST remains gated and retrospective",
+    "Production metrics unavailable without exact current-population scores; provenance assertions do not prove independent holdout"
+  ]
+}

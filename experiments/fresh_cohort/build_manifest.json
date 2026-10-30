@@ -1,0 +1,38 @@
+{
+  "implementation_sha256": "9eb0620c84a7363ef0d53269a75eef203a4ce9737c2e944abc68450589b5e17a",
+  "source_sha256": "bb11202d8b793ce0c0a439f3639c57b3c896aaa02dff11ca315e0c0d47ce55fb",
+  "notebooks": [
+    {
+      "path": "notebooks\\Fresh Cohort AutoML NLP\\01_tensor_initialization_AutoML.ipynb",
+      "sha256": "488a9b797222e0de018d84d8bc3978a767cf62a2394d157f0399dab0650732f9",
+      "cells": 7
+    },
+    {
+      "path": "notebooks\\Fresh Cohort AutoML NLP\\02_patient_level_split_AutoML.ipynb",
+      "sha256": "83827062f503b460d35f3128f144cb28cd5980efeb183abfa911c4f8369b2dcc",
+      "cells": 3
+    },
+    {
+      "path": "notebooks\\Fresh Cohort AutoML NLP\\03_transformer_training_AutoML.ipynb",
+      "sha256": "262d039e00bf079770ca24d36896bcca53d966c1f9f5a31e56e256e96f39b954",
+      "cells": 4
+    },
+    {
+      "path": "notebooks\\Fresh Cohort AutoML NLP\\04_transformer_evaluation_AutoML.ipynb",
+      "sha256": "ab661b3c579665112043a71f20aa2eab058a4d3e05ecabd917e0f89c9a6ee2dc",
+      "cells": 4
+    },
+    {
+      "path": "notebooks\\Fresh Cohort AutoML NLP\\05_model_comparison_AutoML.ipynb",
+      "sha256": "325dfa703c6e71e26b36cda8903808721c6d1e0276d092acbf08b9265db70531",
+      "cells": 8
+    }
+  ],
+  "clinical_execution": false,
+  "status": "SYNTHETICALLY_VERIFIED_RUNTIME_AUDIT_REQUIRED",
+  "default_phase": "SUMMARY",
+  "cohort_policy": "bounded_reconstruction_development",
+  "snapshot_months": 48,
+  "production_reporting_sha256": "5c84881ea14258a28c91df6bb41add5fc83a4c5e9877ac07681b1b69ed10f69d",
+  "production_status": "Frozen-score coverage and provenance checked at runtime; unavailable production has no lift or rank"
+}

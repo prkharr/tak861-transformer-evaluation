@@ -1,0 +1,134 @@
+{
+  "status": "PASS",
+  "clinical_execution": false,
+  "delivery_status": "SYNTHETICALLY_VERIFIED_RUNTIME_AUDIT_REQUIRED",
+  "tests_run": 160,
+  "failures": [],
+  "errors": [],
+  "skipped": [],
+  "elapsed_seconds": 88.13450370007195,
+  "interpreter": "C:\\Users\\prakhar\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe",
+  "python": "3.12.14",
+  "packages": {
+    "numpy": {
+      "version": "2.5.3",
+      "path": "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\regularization_runtime\\numpy\\__init__.py"
+    },
+    "pandas": {
+      "version": "3.0.1",
+      "path": "C:\\Users\\prakhar\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\Lib\\site-packages\\pandas\\__init__.py"
+    },
+    "scipy": {
+      "version": "1.18.1",
+      "path": "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\regularization_runtime\\scipy\\__init__.py"
+    },
+    "sklearn": {
+      "version": "1.9.1",
+      "path": "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\regularization_runtime\\sklearn\\__init__.py"
+    },
+    "torch": {
+      "version": "2.8.0+cpu",
+      "path": "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\padding_runtime_20260925\\torch\\__init__.py"
+    },
+    "lightgbm": {
+      "version": "4.6.0",
+      "path": "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\final_experiment_runtime\\lightgbm\\__init__.py"
+    },
+    "sqlglot": {
+      "version": "30.22.0",
+      "path": "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\sql_audit\\sqlglot\\__init__.py"
+    },
+    "duckdb": {
+      "version": "2.0.0",
+      "path": "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\sql_audit\\duckdb\\__init__.py"
+    },
+    "matplotlib": {
+      "version": "3.11.2",
+      "path": "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\feature_analysis_runtime\\matplotlib\\__init__.py"
+    }
+  },
+  "python_paths": [
+    "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\sql_audit",
+    "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\tak861-transformer-evaluation",
+    "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\regularization_runtime",
+    "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\sql_audit",
+    "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\padding_runtime_20260925",
+    "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\final_experiment_runtime",
+    "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\tak861-transformer-evaluation",
+    "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\feature_analysis_runtime",
+    "C:\\Users\\prakhar\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python312.zip",
+    "C:\\Users\\prakhar\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\DLLs",
+    "C:\\Users\\prakhar\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\Lib",
+    "C:\\Users\\prakhar\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python",
+    "C:\\Users\\prakhar\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\Lib\\site-packages",
+    "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\feature_analysis_runtime"
+  ],
+  "command": "python -m experiments.fresh_cohort.validate_local",
+  "implementation_sha256": "9eb0620c84a7363ef0d53269a75eef203a4ce9737c2e944abc68450589b5e17a",
+  "notebooks": [
+    {
+      "path": "notebooks\\Fresh Cohort AutoML NLP\\01_tensor_initialization_AutoML.ipynb",
+      "sha256": "488a9b797222e0de018d84d8bc3978a767cf62a2394d157f0399dab0650732f9",
+      "cells": 7
+    },
+    {
+      "path": "notebooks\\Fresh Cohort AutoML NLP\\02_patient_level_split_AutoML.ipynb",
+      "sha256": "83827062f503b460d35f3128f144cb28cd5980efeb183abfa911c4f8369b2dcc",
+      "cells": 3
+    },
+    {
+      "path": "notebooks\\Fresh Cohort AutoML NLP\\03_transformer_training_AutoML.ipynb",
+      "sha256": "262d039e00bf079770ca24d36896bcca53d966c1f9f5a31e56e256e96f39b954",
+      "cells": 4
+    },
+    {
+      "path": "notebooks\\Fresh Cohort AutoML NLP\\04_transformer_evaluation_AutoML.ipynb",
+      "sha256": "ab661b3c579665112043a71f20aa2eab058a4d3e05ecabd917e0f89c9a6ee2dc",
+      "cells": 4
+    },
+    {
+      "path": "notebooks\\Fresh Cohort AutoML NLP\\05_model_comparison_AutoML.ipynb",
+      "sha256": "325dfa703c6e71e26b36cda8903808721c6d1e0276d092acbf08b9265db70531",
+      "cells": 8
+    }
+  ],
+  "source_sha256": {
+    "experiments\\fresh_cohort\\build_notebooks.py": "d352b9605fc7fd00b2b60551045a1b445b2d8b5bc1d6fe5b0cc07e2d44a7e1e3",
+    "experiments\\fresh_cohort\\build_production_reporting.py": "67c14eef961f3ad3b159aa0e1631fcde09a6df3115f0177d8169be0900eb0df0",
+    "experiments\\fresh_cohort\\cohort_binding.py": "48bf0415031b33fcd7c3e5dca44e1b1d76de9b357f26ccf45777f44a1c396e67",
+    "experiments\\fresh_cohort\\nlp_features.py": "ef9c3a60a3d6463f9ef08c0c02a0865efae283d7406c0792ce63494a247ca50e",
+    "experiments\\fresh_cohort\\pipeline.py": "eb0ec830d5ca1822a3d87be5a72036961e085eca387b70c81ecbab77829ce2fc",
+    "experiments\\fresh_cohort\\plots.py": "371c539783b2d019e5999fcc1e11d02d86446b3f5a2d8b00464ac1a20ec9149d",
+    "experiments\\fresh_cohort\\production_comparison.py": "f705179518584d60b58f0972854b629d329bdc44ee1b35fd53f997a9fa795112",
+    "experiments\\fresh_cohort\\test_cohort_binding_review.py": "a0b201724be268be6fade8be17c5115005fdd099837de26e1b38641cc3842f3a",
+    "experiments\\fresh_cohort\\test_cohort_sql.py": "525d5a3d2cd06b61c5d4deddbad7edb68f5195c0f5efe6882d66afa0d4904791",
+    "experiments\\fresh_cohort\\test_nlp_features.py": "c0830642daa9f54c8eb68a6875ed1d22ca091c09af7eea7351d54484694bdc33",
+    "experiments\\fresh_cohort\\test_notebooks.py": "3ac48731dd616afc7d142fb7c5f09a5c651035da3c267d2a92061d3ca59d530e",
+    "experiments\\fresh_cohort\\test_pipeline.py": "c4c51dfce7932aa7a9bd83172061e2a722c29bf096b5d1a75b7a1bb8233377ef",
+    "experiments\\fresh_cohort\\test_plots.py": "2b6e36ef70b9edf26e2e11bda1ab01627377c23b07224db21d3188a2b370b5b7",
+    "experiments\\fresh_cohort\\test_production_comparison.py": "1f6e5d254e0ff754bb0a3d44fbbd4bfe1c399379ddfe70f55d2ff0803a8fd08a",
+    "experiments\\fresh_cohort\\validate_local.py": "bbefcd0954bff8b9c24b21d15c9a4af4b53ddda578df87a40c3e34813ef728df",
+    "experiments\\automl_sequence\\raw_automl.py": "8656086821e78eeb30f708a1240d01614d44d759068e271502d7421b26b10ef8",
+    "experiments\\automl_sequence\\modeling.py": "f29449d5c0d50a3967c272f733daecf51202703f1d2e2bcccf1a03020d133aad",
+    "experiments\\automl_sequence\\workflow.py": "2a6cb2c739bd8aae084d0670e66856e4e39bea01fb7b2b464c20ee1aaba5d592",
+    "experiments\\automl_sequence\\fresh_lgbm.py": "9e1780134d5997b65b0503977f28348a5820919b80c3f0c3869d4f065a13f6e5",
+    "experiments\\automl_sequence\\build_notebooks.py": "62bab100d6dd32973c8c445d7d62ec18a25e2ec279b845cac3a2481ee4b9f493"
+  },
+  "scope": [
+    "Full original delivery and shared runtime discovery",
+    "full fresh_cohort test discovery in the same process",
+    "generated five-notebook execution with synthetic source/store doubles",
+    "frozen twelve-anchor content/hash regression",
+    "TRAIN-only fitting and validation perturbation",
+    "checkpoint tampering, mapping drift and exact partial-month cutoff checks"
+  ],
+  "limitations": [
+    "No clinical records queried",
+    "Spark aggregation/warehouse I/O substituted in integration fixture",
+    "Original delivery verified against pinned published source; new delivery against current source",
+    "Synthetic fixture uses reduced training/bootstrap settings; delivered defaults are asserted separately",
+    "No production-size memory or runtime measurement",
+    "Runtime population counts measured and frozen at binding; original eligibility producer and source completeness unverified",
+    "Snowflake SQL parsed and transpiled to DuckDB for synthetic execution; warehouse execution still required"
+  ]
+}
