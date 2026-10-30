@@ -11,7 +11,7 @@
   "production_reporting_sha256": "5c84881ea14258a28c91df6bb41add5fc83a4c5e9877ac07681b1b69ed10f69d",
   "conditions": {
     "M1": "PASS: final manifest and receipt agree; 160 synthetic tests, no failures/errors",
-    "M2": "Core publication pinned at d3eac3a4a986d9c3d3234282dc7699bbdeb9f35a; final publication to be pinned in follow-up metadata commit",
+    "M2": "Core pinned at d3eac3a4a986d9c3d3234282dc7699bbdeb9f35a; final five notebooks pinned at 6e37b5a7e7457b4efd1b2c6a23779ceb4b124bff; all publication blobs verified",
     "B1": "Report artifact uses full identity digest including reporting and prediction hashes",
     "B6": "All five regenerated together; core 01-04 unchanged; hardened production source embedded and tested"
   },
@@ -19,5 +19,6 @@
     "No clinical execution",
     "Validation is development evaluation; TEST remains gated and retrospective",
     "Production metrics unavailable without exact current-population scores; provenance assertions do not prove independent holdout"
-  ]
+  ],
+  "publication_commit": "6e37b5a7e7457b4efd1b2c6a23779ceb4b124bff"
 }
