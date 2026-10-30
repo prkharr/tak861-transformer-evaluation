@@ -42,7 +42,7 @@ def resolve_universe(read_query, explicit=None, table_name=TABLE_NAME):
     return fresh_counts._fqn(names[0])
 
 
-def align_universe(new, prior, seed=42):
+def align_universe(new, prior, seed=42, *, change_policy=None):
     """Preserve every known patient's partition; hash only genuinely new IDs."""
     new, prior = frame(new), frame(prior)
     new['SPLIT'] = 'train'
@@ -60,11 +60,20 @@ def align_universe(new, prior, seed=42):
     keys = ['PATIENT_ID', 'END_DT']
     overlap = prior.merge(new, on=keys, how='outer', suffixes=('_old', '_new'), indicator=True)
     shared = overlap._merge.eq('both')
-    if overlap._merge.eq('left_only').any():
+    removed = overlap.loc[overlap._merge.eq('left_only'), keys]
+    removed_hash = inputs.stable_hash([[r.PATIENT_ID, r.END_DT.strftime('%Y-%m-%d')]
+                                      for r in removed.sort_values(keys).itertuples(index=False)])
+    if len(removed) and (change_policy or {}).get('removed_keys_sha256') != removed_hash:
         raise ValueError("Cohort removes prior snapshot keys; verify patient-key format and producer scope before proceeding")
     changed = int((shared & overlap.RESP_old.ne(overlap.RESP_new)).sum())
-    if changed:
+    changed_rows = overlap.loc[shared & overlap.RESP_old.ne(overlap.RESP_new)].sort_values(keys)
+    changed_hash = inputs.stable_hash([[r.PATIENT_ID, r.END_DT.strftime('%Y-%m-%d'), int(r.RESP_old), int(r.RESP_new)]
+                                      for r in changed_rows.itertuples(index=False)])
+    if changed and (change_policy or {}).get('changed_labels_sha256') != changed_hash:
         raise ValueError("Cohort changes RESP on existing snapshot keys; verify producer rules before proceeding")
+    if change_policy is not None and (change_policy.get('removed_keys_sha256') != removed_hash or
+                                     change_policy.get('changed_labels_sha256') != changed_hash):
+        raise ValueError("Population change set differs from its frozen audit")
     for split in ('train', 'validation', 'test'):
         if set(new.loc[new.SPLIT.eq(split), 'RESP']) != {0, 1}:
             raise ValueError("Revised universe needs both classes in " + split)
@@ -94,6 +103,8 @@ def align_universe(new, prior, seed=42):
         patients=len(part),mean_snapshots=float(part['size'].mean()),max_snapshots=int(part['size'].max()))
         for label,population in [('old',prior),('new',new)]
         for cls,part in population.groupby('PATIENT_ID').RESP.agg(['max','size']).groupby('max')]
+    if change_policy is not None:
+        receipt['change_policy'] = dict(change_policy)
     return new, receipt
 
 
@@ -128,7 +139,7 @@ def load_client_counts(spark, read_query, read_sf, config):
     name = resolve_universe(read_query, config.get('table'), config.get('table_name', TABLE_NAME))
     prior = frame(read_sf('PATIENT_SPLIT'))
     new = frame(read_query('SELECT PATIENT_ID,END_DT,RESP FROM ' + name))
-    metadata, audit = align_universe(new, prior, config.get('split_seed', 42))
+    metadata, audit = align_universe(new, prior, config.get('split_seed', 42), change_policy=config.get('change_policy'))
     assert_expected_population(audit, config.get('expected_population'))
     mapping = frame(read_sf('FEATURE_MAP')).sort_values('FEATURE_INDEX').reset_index(drop=True)
     if (len(mapping) != 1028 or mapping.FEATURE_INDEX.tolist() != list(range(1028))

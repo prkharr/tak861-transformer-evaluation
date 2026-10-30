@@ -1,0 +1,105 @@
+{
+  "status": "PASS",
+  "clinical_execution": false,
+  "implementation_sha256": "9eb0620c84a7363ef0d53269a75eef203a4ce9737c2e944abc68450589b5e17a",
+  "checks": [
+    {
+      "log": "automl_release_discovery.log",
+      "tests": 125,
+      "sha256": "17aec3c060855792df5e67db125a7f2566806fe7dd8f5bb94e78874e414a8ec1"
+    },
+    {
+      "log": "fresh_cohort_discovery.log",
+      "tests": 33,
+      "sha256": "dc9014ab4eae595d0cdc1d82e3580e86360a6307093cd9cf347f070af57874df"
+    },
+    {
+      "log": "fresh_final_delivery_integration.log",
+      "tests": 2,
+      "sha256": "c0d901219de6f79520fae46a198c1674c86177198d36dd125e218e1c59b7ac33"
+    }
+  ],
+  "notebooks": [
+    {
+      "path": "notebooks\\Fresh Cohort AutoML NLP\\01_tensor_initialization_AutoML.ipynb",
+      "sha256": "488a9b797222e0de018d84d8bc3978a767cf62a2394d157f0399dab0650732f9",
+      "cells": 7
+    },
+    {
+      "path": "notebooks\\Fresh Cohort AutoML NLP\\02_patient_level_split_AutoML.ipynb",
+      "sha256": "83827062f503b460d35f3128f144cb28cd5980efeb183abfa911c4f8369b2dcc",
+      "cells": 3
+    },
+    {
+      "path": "notebooks\\Fresh Cohort AutoML NLP\\03_transformer_training_AutoML.ipynb",
+      "sha256": "262d039e00bf079770ca24d36896bcca53d966c1f9f5a31e56e256e96f39b954",
+      "cells": 4
+    },
+    {
+      "path": "notebooks\\Fresh Cohort AutoML NLP\\04_transformer_evaluation_AutoML.ipynb",
+      "sha256": "ab661b3c579665112043a71f20aa2eab058a4d3e05ecabd917e0f89c9a6ee2dc",
+      "cells": 4
+    }
+  ],
+  "interpreter": "C:\\Users\\prakhar\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe",
+  "python": "3.12.14",
+  "packages": {
+    "numpy": {
+      "version": "2.5.3",
+      "path": "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\regularization_runtime\\numpy\\__init__.py"
+    },
+    "pandas": {
+      "version": "3.0.1",
+      "path": "C:\\Users\\prakhar\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\Lib\\site-packages\\pandas\\__init__.py"
+    },
+    "scipy": {
+      "version": "1.18.1",
+      "path": "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\regularization_runtime\\scipy\\__init__.py"
+    },
+    "sklearn": {
+      "version": "1.9.1",
+      "path": "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\regularization_runtime\\sklearn\\__init__.py"
+    },
+    "torch": {
+      "version": "2.8.0+cpu",
+      "path": "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\padding_runtime_20260925\\torch\\__init__.py"
+    },
+    "lightgbm": {
+      "version": "4.6.0",
+      "path": "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\final_experiment_runtime\\lightgbm\\__init__.py"
+    },
+    "sqlglot": {
+      "version": "30.22.0",
+      "path": "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\sql_audit\\sqlglot\\__init__.py"
+    },
+    "duckdb": {
+      "version": "2.0.0",
+      "path": "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\sql_audit\\duckdb\\__init__.py"
+    },
+    "matplotlib": {
+      "version": "3.11.2",
+      "path": "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\feature_analysis_runtime\\matplotlib\\__init__.py"
+    }
+  },
+  "python_paths": [
+    "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\sql_audit",
+    "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\tak861-transformer-evaluation",
+    "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\regularization_runtime",
+    "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\sql_audit",
+    "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\padding_runtime_20260925",
+    "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\final_experiment_runtime",
+    "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\tak861-transformer-evaluation",
+    "C:\\Users\\prakhar\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python312.zip",
+    "C:\\Users\\prakhar\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\DLLs",
+    "C:\\Users\\prakhar\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\Lib",
+    "C:\\Users\\prakhar\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python",
+    "C:\\Users\\prakhar\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\Lib\\site-packages",
+    "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\feature_analysis_runtime"
+  ],
+  "limitations": [
+    "Synthetic only; no clinical execution or measured runtime",
+    "Original cohort producer and source completeness unverified",
+    "Production comparison pending separate delivery"
+  ],
+  "review": "Independent core approval recorded 2026-10-30; mechanical test/manifest conditions completed"
+}

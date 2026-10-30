@@ -390,7 +390,8 @@ def _rank(proxy, y, indices, names, weights, fraction=.10):
 
 
 def prepare_features(summary_train, sequence_train, y_train, patient_ids_train,
-                     feature_names, valid_train=None, feature_kinds=None, config=None, *, row_indices=None):
+                     feature_names, valid_train=None, feature_kinds=None, config=None, *, row_indices=None,
+                     sequence_steps=12):
     """Common feature subset, selected strictly inside TRAIN by grouped proxy CV.
 
     The proxy uses summary, historical mean, standard deviation and time slope.
@@ -417,11 +418,13 @@ def prepare_features(summary_train, sequence_train, y_train, patient_ids_train,
     summary, smask = _array(summary_train, valid[:, :1], allow_empty=True)
     y, groups = np.asarray(y_train), np.asarray(patient_ids_train)
     names = list(feature_names)
-    if (summary.shape[1] != 1 or sequence.shape[1] != 12 or summary.shape[0] != sequence.shape[0]
+    if type(sequence_steps) is not int or sequence_steps not in (1, 12):
+        raise ValueError("Selection requires an explicit 1-step or 12-step sequence contract")
+    if (summary.shape[1] != 1 or sequence.shape[1] != sequence_steps or summary.shape[0] != sequence.shape[0]
             or summary.shape[-1] != sequence.shape[-1] or len(names) != summary.shape[-1]
             or len(set(names)) != len(names) or y.shape != (len(summary),) or groups.shape != y.shape
             or set(np.unique(y)) != {0, 1}):
-        raise ValueError("Aligned summary N x 1 x F, monthly N x 12 x F, labels and patient IDs required")
+        raise ValueError("Aligned summary, declared sequence length, labels and patient IDs required")
     if any(not isinstance(n, str) or not n.strip() for n in names):
         raise ValueError("Feature names must be nonempty unique strings")
     if {"PATIENT_ID", "END_DT", "RESP", "SPLIT", "LABEL", "TARGET"} & {n.upper() for n in names}:

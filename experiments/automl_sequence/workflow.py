@@ -111,16 +111,28 @@ def assign_patient_split(metadata, seed=42):
 INPUT_NAMES = {"arrays.npz", "metadata.csv", "input_manifest.json"}
 
 
+def phase_steps(config):
+    phase = config.get("experiment_phase", "TEMPORAL")
+    if phase not in ("SUMMARY", "TEMPORAL"):
+        raise ValueError("Unknown experiment phase")
+    steps = 1 if phase == "SUMMARY" else 12
+    if config.get("raw_automl", {}).get("request_steps", steps) != steps:
+        raise ValueError("Phase and raw extraction length disagree")
+    return steps
+
+
 def save_inputs(run_prefix, data, panel_manifest, config, implementation_hash):
     metadata = assign_patient_split(data["metadata"])
     inputs.verify_fitting_scope(panel_manifest["contract"], metadata)
-    _validate_input_arrays(data, metadata, data["feature_names"])
+    _validate_input_arrays(data, metadata, data["feature_names"], phase_steps(config))
     metadata["END_DT"] = pd.to_datetime(metadata.END_DT).dt.strftime("%Y-%m-%d")
     arrays = {key: np.asarray(data[key]) for key in
               ("X_summary", "X_sequence", "summary_mask", "sequence_mask", "y")}
     if "X_count" in data:
         arrays["X_count"] = data["X_count"]
         arrays["count_mask"] = data["count_mask"]
+    if "X_nlp" in data:
+        arrays["X_nlp"], arrays["nlp_mask"] = data["X_nlp"], data["nlp_mask"]
     with tempfile.TemporaryDirectory(prefix="tak861_inputs_write_") as directory:
         arrays_blob = Path(directory) / "arrays.npz"
         np.savez_compressed(arrays_blob, **arrays)
@@ -135,6 +147,8 @@ def save_inputs(run_prefix, data, panel_manifest, config, implementation_hash):
                         count_contract=data.get("count_contract"),
                         split_counts={s: int((metadata.SPLIT == s).sum()) for s in ("train", "validation", "test")},
                         prediction_unit="patient_snapshot", private_row_level_artifacts=True)
+        if "X_nlp" in data:
+            manifest["nlp_manifest"] = plain(data["nlp_manifest"])
         if table_exists(run_prefix + "_INPUTS"):
             previous_data = load_inputs(run_prefix, implementation_hash)
             previous = previous_data["manifest"]
@@ -187,6 +201,7 @@ def release_inputs(data):
         for key in ('X_summary', 'X_sequence'):
             inputs.release_array(data.get(key))
         modeling.release_array(data.get('X_count'))
+        modeling.release_array(data.get('X_nlp'))
 
 
 def load_inputs(run_prefix, implementation_hash):
@@ -201,7 +216,7 @@ def load_inputs(run_prefix, implementation_hash):
         if (file_sha256(artifacts['arrays.npz']) != manifest['array_sha256'] or
                 hashlib.sha256(artifacts['metadata.csv']).hexdigest() != manifest['metadata_sha256']):
             raise ValueError('Input content changed')
-        allowed = {'X_summary','X_sequence','X_count','summary_mask','sequence_mask','count_mask','y'}
+        allowed = {'X_summary','X_sequence','X_count','summary_mask','sequence_mask','count_mask','y','X_nlp','nlp_mask'}
         with zipfile.ZipFile(artifacts['arrays.npz']) as archive:
             for name in archive.namelist():
                 key = name[:-4] if name.endswith('.npy') else ''
@@ -218,7 +233,9 @@ def load_inputs(run_prefix, implementation_hash):
         data.update(metadata=metadata, manifest=manifest, feature_names=manifest["feature_names"],
                     feature_specs=manifest["feature_specs"], _input_directory=temporary,
                     indices={s: np.flatnonzero(metadata.SPLIT.to_numpy() == s) for s in ("train", "validation", "test")})
-        _validate_input_arrays(data, metadata, manifest["feature_names"])
+        if "nlp_manifest" in manifest:
+            data["nlp_manifest"] = manifest["nlp_manifest"]
+        _validate_input_arrays(data, metadata, manifest["feature_names"], phase_steps(manifest["configuration"]))
         return data
     except BaseException:
         data['_input_directory'] = temporary
@@ -226,11 +243,11 @@ def load_inputs(run_prefix, implementation_hash):
         raise
 
 
-def _validate_input_arrays(data, metadata, feature_names):
+def _validate_input_arrays(data, metadata, feature_names, sequence_steps=12):
     n, f = len(metadata), len(feature_names)
     if f == 0 or len(set(feature_names)) != f:
         raise ValueError("Invalid AutoML feature order")
-    for value, mask, steps in (("X_summary", "summary_mask", 1), ("X_sequence", "sequence_mask", 12)):
+    for value, mask, steps in (("X_summary", "summary_mask", 1), ("X_sequence", "sequence_mask", sequence_steps)):
         x, valid = np.asarray(data[value]), np.asarray(data[mask])
         if x.shape != (n, steps, f) or valid.shape != (n, steps) or valid.dtype != bool:
             raise ValueError("Invalid AutoML array/mask shape: " + value)
@@ -253,6 +270,19 @@ def _validate_input_arrays(data, metadata, feature_names):
         for start in range(0,n,256):
             if not np.isfinite(data["X_count"][start:start+256]).all():
                 raise ValueError("Invalid count mask or nonfinite count values")
+    if "X_nlp" in data:
+        names = data.get("nlp_manifest", {}).get("feature_names", [])
+        if not names or len(set(names)) != len(names):
+            raise ValueError("Missing or invalid frozen NLP feature order")
+        if np.shape(data["X_nlp"]) != (n, 12, len(names)) or np.shape(data["nlp_mask"]) != (n, 12):
+            raise ValueError("NLP array/mask shape mismatch")
+        if np.asarray(data["nlp_mask"]).dtype != bool:
+            raise ValueError("NLP activity mask must be boolean")
+        for start in range(0, n, 256):
+            block = data["X_nlp"][start:start+256]
+            mask = data["nlp_mask"][start:start+256]
+            if not np.isfinite(block).all() or (block < 0).any() or (block[~mask] != 0).any():
+                raise ValueError("NLP values must be finite nonnegative with zero inactive steps")
 
 
 def attach_count_reference(data, values, metadata, contract, valid=None):
@@ -315,6 +345,9 @@ PREP_NAMES = {"preparation.json", "protocol.json"}
 
 
 def prepare_run(data, run_prefix, config, implementation_hash):
+    steps = phase_steps(config)
+    if data["X_sequence"].shape[1] != steps:
+        raise ValueError("AutoML history length differs from the registered experiment phase")
     if data["manifest"]["panel_manifest"]["contract"]["fit_scope"] != "deterministic_raw":
         raise ValueError("This fold-local selection protocol requires raw deterministic AutoML inputs. "
                          "A transform or vocabulary selected using all TRAIN labels is not fold-local. "
@@ -344,7 +377,7 @@ def prepare_run(data, run_prefix, config, implementation_hash):
     prep = {"automl": modeling.prepare_features(
         data["X_summary"], data["X_sequence"], data["y"][ti], groups,
         data["feature_names"], valid_train=data["sequence_mask"], row_indices=ti,
-        feature_kinds=declared_kinds, config=selection_config)}
+        feature_kinds=declared_kinds, config=selection_config, sequence_steps=steps)}
     arms = {"SUMMARY": dict(family="transformer", input="X_summary", mask="summary_mask", preparation="automl"),
             "SEQUENCE": dict(family="transformer", input="X_sequence", mask="sequence_mask", preparation="automl")}
     if "X_count" in data:
@@ -361,6 +394,20 @@ def prepare_run(data, run_prefix, config, implementation_hash):
         raise ValueError("Both requested incremental-value experiments require the matched 1,028-count reference")
     if not config.get("include_automl_only_controls", False):
         arms = {name: arm for name, arm in arms.items() if name not in ("SUMMARY", "SEQUENCE")}
+    if steps == 1:
+        arms = {name: arm for name, arm in arms.items() if name not in ("SEQUENCE", "TEMPORAL_FUSION")}
+    if config.get("include_nlp", False):
+        contract = data.get("nlp_manifest", data["manifest"].get("nlp_manifest", {}))
+        if ("X_nlp" not in data or "COUNT" not in arms or contract.get("fit_scope") != "train_only"
+                or contract.get("orientation") != "0=newest"
+                or contract.get("metadata_hash") != inputs.frame_hash(data["metadata"])
+                or contract.get("train_patients_sha256") != inputs.train_patient_hash(data["metadata"])):
+            raise ValueError("NLP augmentation needs aligned TRAIN-only monthly inputs and count reference")
+        prep["nlp"] = dict(feature_names=contract["feature_names"], manifest_hash=digest(contract),
+                           selection="fixed TRAIN-only TF-IDF vocabulary; no supervised screening",
+                           scaling="Per-document L2-normalized sublinear TF-IDF; no second fitted scaler")
+        arms["NLP_FUSION"] = dict(arms["COUNT"], nlp_input="X_nlp", nlp_mask="nlp_mask",
+                                  experiment="count_plus_monthly_train_fitted_tfidf")
     if config.get("include_lightgbm", False):
         raise ValueError("LightGBM refit is deferred in this bounded two-experiment protocol")
     seeds = config.get("seeds", [42, 142, 242])
@@ -382,6 +429,13 @@ def prepare_run(data, run_prefix, config, implementation_hash):
                                 if 'client_universe' in config else "retrospective; this cohort already evaluated twice"),
                     partial_seed_rule="all completed runs shown; incomplete protocol cannot be locked",
                     comparison_scope="matched count control versus static and historical AutoML augmentation; descriptive development evidence")
+    if "experiment_phase" in config:
+        protocol["experiment_phase"] = config["experiment_phase"]
+        protocol["automl_proxy_scope"] = ("single-anchor: historical mean equals current value; SD and slope zero"
+                                           if steps == 1 else "12-anchor summary, mean, SD and slope descriptors")
+        protocol["nlp_contrast_scope"] = "NLP plus monthly history versus AutoML representation; not isolated language or architecture effect"
+        protocol["comparison_scope"] = ("Within-phase development comparison; SUMMARY and TEMPORAL have different feature-selection scope. "
+                                         "Do not rank cross-phase predictions or claim independent production superiority.")
     save_artifacts(table, {"preparation.json": json_bytes(prep), "protocol.json": json_bytes(protocol)})
     return prep, protocol
 
@@ -442,6 +496,20 @@ def arm_arrays(data, prep, arm, split, subset=None):
                 merged[start:start+256,:,-1] = mask[start:start+256]
             modeling.release_array(x);modeling.release_array(temporal)
             x,merged,temporal = merged,None,None
+        if 'nlp_input' in arm:
+            raw_nlp = data[arm['nlp_input']]
+            activity = data[arm['nlp_mask']]
+            if raw_nlp.shape[1] != x.shape[1]:
+                raise ValueError('NLP monthly grid length mismatch')
+            merged = modeling.allocate_array((*x.shape[:2], x.shape[-1]+raw_nlp.shape[-1]+1), np.float32)
+            k = x.shape[-1]
+            for start in range(0, len(idx), 256):
+                rows = idx[start:start+256]
+                merged[start:start+256, :, :k] = x[start:start+256]
+                merged[start:start+256, :, k:-1] = raw_nlp[rows]
+                merged[start:start+256, :, -1] = activity[rows]
+            modeling.release_array(x)
+            x, merged = merged, None
         return x,valid,static
     except BaseException:
         for value in (x,static,transformed,temporal,merged):
@@ -615,9 +683,11 @@ def compare_run(data, prep, protocol, results, lock, run_prefix, *, evaluate_tes
         metrics[name]["primary_lift_fraction"] = protocol["primary_lift_fraction"]
     pairs = [("SEQUENCE", "SUMMARY")] if "SEQUENCE" in scores and "SUMMARY" in scores else []
     if "COUNT" in scores:
-        pairs += [(name, "COUNT") for name in ("SUMMARY", "SEQUENCE", "STATIC_FUSION", "TEMPORAL_FUSION") if name in scores]
+        pairs += [(name, "COUNT") for name in ("SUMMARY", "SEQUENCE", "STATIC_FUSION", "TEMPORAL_FUSION", "NLP_FUSION") if name in scores]
     if "STATIC_FUSION" in scores and "TEMPORAL_FUSION" in scores:
         pairs += [("TEMPORAL_FUSION", "STATIC_FUSION")]
+    if "STATIC_FUSION" in scores and "NLP_FUSION" in scores:
+        pairs += [("NLP_FUSION", "STATIC_FUSION")]
     for name in ("SUMMARY", "SEQUENCE"):
         if "GB_" + name in scores:
             pairs.append((name, "GB_" + name))

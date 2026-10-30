@@ -32,8 +32,9 @@ DEFAULT_CONFIG = {
 def _config(config):
     cfg = dict(DEFAULT_CONFIG)
     incoming = config or {}
-    if set(incoming) - set(cfg):
-        raise ValueError("Unknown raw AutoML source configuration: " + str(set(incoming)-set(cfg)))
+    unknown = set(incoming) - (set(cfg) | {"request_steps"})
+    if unknown:
+        raise ValueError("Unknown raw AutoML source configuration: " + str(unknown))
     cfg.update(incoming)
     for key, parts in (("source_schema", 2), ("mapping_table", 3)):
         if not isinstance(cfg[key], str) or not re.fullmatch(
@@ -45,6 +46,12 @@ def _config(config):
         raise ValueError("max_features must be an explicit positive integer or None")
     if cfg["date_policy"] not in ("same_day_months", "month_end_history"):
         raise ValueError("Unknown date policy")
+    steps = cfg.get("request_steps", 12)
+    if type(steps) is not int or steps not in (1, 12):
+        raise ValueError("request_steps must be 1 (summary development) or 12 (temporal)")
+    if steps == 12:
+        # The unchanged legacy contract must retain its exact content hash.
+        cfg.pop("request_steps", None)
     return cfg
 
 
@@ -441,7 +448,7 @@ def _build_raw_automl_inputs(read_query, metadata, source_config, db, run_identi
         raise TypeError("read_query must use the authorized existing source connection")
     cfg = _config(source_config)
     meta = inputs.normalize_snapshots(metadata)
-    requests, _ = inputs.make_requests(meta, date_policy=cfg['date_policy'])
+    requests, _ = inputs.make_requests(meta, steps=cfg.get('request_steps', 12), date_policy=cfg['date_policy'])
     template = raw_sql_template(cfg)
     started = time.perf_counter()
     train_patients = set(meta.loc[meta.SPLIT.eq('train'),'PATIENT_ID'])

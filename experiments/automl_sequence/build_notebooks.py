@@ -35,7 +35,7 @@ def code(text):
     return {"cell_type": "code", "metadata": {}, "execution_count": None, "outputs": [], "source": text.splitlines(True)}
 
 
-def build():
+def build(*, write=True):
     sources = {n: (HERE / (n + ".py")).read_text(encoding="utf-8-sig")
                for n in ("inputs", "count_loader", "modeling", "workflow", "reliance", "source_recovery", "raw_automl", "fresh_counts", "client_universe")}
     sources["comparison"] = (REPO / "experiments/rigorous_transformer/comparison.py").read_text(encoding="utf-8-sig")
@@ -560,6 +560,8 @@ def build():
         del data
         memory_receipt("notebook_05_released")
         ''')]
+    if not write:
+        return notebooks
     files = []
     for name, cells in notebooks.items():
         cells = [dict(cell, source=notebook_source("".join(cell["source"])).splitlines(True))

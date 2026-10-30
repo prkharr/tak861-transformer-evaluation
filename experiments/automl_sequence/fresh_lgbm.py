@@ -126,11 +126,15 @@ def fit_or_resume(data, prep, protocol, lock, wf, mdl, wh, prefix, source_hash, 
 
 
 def compare(data, prep, baseline, transformer_scores, split, wf, mdl, cmp, wh,
-            allow_test=False, n_bootstrap=1000):
+            allow_test=False, n_bootstrap=1000, expected_arms=None):
     if split not in ("validation", "test") or (split == "test" and not allow_test):
         raise ValueError("TEST requires explicit authorization after fitting is locked")
-    if set(transformer_scores) != {"COUNT", "STATIC_FUSION", "TEMPORAL_FUSION"}:
-        raise ValueError("All three frozen Transformer predictions required")
+    required = {"COUNT", "STATIC_FUSION", "TEMPORAL_FUSION"} if expected_arms is None else set(expected_arms)
+    allowed = ({"COUNT", "STATIC_FUSION"}, {"COUNT", "STATIC_FUSION", "TEMPORAL_FUSION"},
+               {"COUNT", "STATIC_FUSION", "NLP_FUSION"},
+               {"COUNT", "STATIC_FUSION", "TEMPORAL_FUSION", "NLP_FUSION"})
+    if required not in allowed or set(transformer_scores) != required:
+        raise ValueError("All registered frozen Transformer predictions required")
     idx = data["indices"][split]
     meta = data["metadata"].iloc[idx].reset_index(drop=True)
     y = data["y"][idx]

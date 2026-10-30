@@ -23,6 +23,7 @@ import pandas as pd
 from experiments.automl_sequence import test_workflow as fixture_module
 from experiments.automl_sequence import source_recovery
 from experiments.automl_sequence import build_notebooks
+from experiments.automl_sequence import release_registry
 from experiments.automl_sequence.test_count_loader import Expression, Frame
 
 
@@ -112,8 +113,24 @@ class NotebookDeliveryTests(unittest.TestCase):
         self.assertNotIn("recover_procedure_sources(", all_code)
 
     def test_embedded_sources_configuration_and_clean_outputs_match(self):
+        """Published notebooks are immutable: compare against the pinned release commit's blobs.
+
+        The working-tree modules may move on for later deliveries; this test proves
+        that the published bytes, their embedded sources and their identity digests
+        still reproduce from the pinned commit, without rebuilding anything.
+        """
+        release = release_registry.RELEASES[release_registry.CURRENT_RELEASE]
+        pinned_sources, _ = release_registry.verify_release_identity(release)
+        published_originals = release_registry.published_sources(release)
+        manifest = json.loads((BOOKS.parent.parent / release["manifest"]).read_text(encoding="utf-8-sig"))
+        self.assertEqual(manifest["implementation_sha256"], release["implementation_sha256"])
+        self.assertEqual(manifest["source_sha256"], release["source_sha256"])
+        self.assertEqual({Path(item["path"].replace("\\", "/")).name: item["sha256"] for item in manifest["notebooks"]},
+                         release["notebooks"])
         source_maps, hashes, configs = [], [], []
         for filename in FILENAMES:
+            self.assertEqual(hashlib.sha256((BOOKS / filename).read_bytes()).hexdigest(), release["notebooks"][filename],
+                             "Published notebook bytes changed: " + filename)
             book = notebook(filename)
             self.assertEqual(book["nbformat"], 4)
             self.assertTrue(all(cell["cell_type"] == "code" for cell in book["cells"]), filename)
@@ -126,21 +143,17 @@ class NotebookDeliveryTests(unittest.TestCase):
                            if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name)
                            and node.targets[0].id in {"EMBEDDED_SOURCES", "EMBEDDED_SOURCE_SHA256", "IMPLEMENTATION_SHA256"}}
             sources = assignments["EMBEDDED_SOURCES"]
-            self.assertEqual(set(sources), {"inputs", "count_loader", "modeling", "workflow", "reliance", "source_recovery", "raw_automl", "fresh_counts", "client_universe", "comparison", "warehouse"})
-            repo = BOOKS.parent.parent
-            paths = {name: repo / "experiments" / "automl_sequence" / (name + ".py")
-                     for name in ("inputs", "count_loader", "modeling", "workflow", "reliance", "source_recovery", "raw_automl", "fresh_counts", "client_universe")}
-            paths.update(comparison=repo / "experiments" / "rigorous_transformer" / "comparison.py",
-                         warehouse=repo / "experiments" / "temporal_selection" / "input_helpers.py")
-            for name, path in paths.items():
-                original = path.read_text(encoding="utf-8-sig")
-                self.assertEqual(sources[name], build_notebooks.notebook_source(original),
-                                 "Stale embedded source; rebuild all notebooks: " + name)
+            self.assertEqual(set(sources), set(release_registry.EMBEDDED_PATHS))
+            for name in release_registry.EMBEDDED_PATHS:
+                self.assertEqual(sources[name], pinned_sources[name],
+                                 "Embedded source differs from the pinned release blob: " + name)
                 self.assertEqual(ast.dump(ast.parse(sources[name]), include_attributes=False),
-                                 ast.dump(ast.parse(original), include_attributes=False),
+                                 ast.dump(ast.parse(published_originals[name]), include_attributes=False),
                                  "Source cleaning changed executable structure: " + name)
             self.assertEqual(hashlib.sha256(json.dumps(sources, sort_keys=True).encode()).hexdigest(),
                              assignments["EMBEDDED_SOURCE_SHA256"])
+            self.assertEqual(assignments["EMBEDDED_SOURCE_SHA256"], release["source_sha256"])
+            self.assertEqual(assignments["IMPLEMENTATION_SHA256"], release["implementation_sha256"])
             source_maps.append(sources); hashes.append(assignments["IMPLEMENTATION_SHA256"])
             for name, source in sources.items():
                 self.assertEqual(comment_tokens(source), [], name)

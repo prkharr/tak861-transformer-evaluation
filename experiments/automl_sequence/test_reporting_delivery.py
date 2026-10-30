@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from experiments.automl_sequence import build_lift_reporting as delivery, workflow
+from experiments.automl_sequence import release_registry
 from experiments.rigorous_transformer import comparison
 
 
@@ -99,10 +100,16 @@ class ReportingDeliveryTests(unittest.TestCase):
             scope['try_existing_lift_report']('test', scores)
 
     def test_notebook_end_cells_and_core_identity(self):
+        # The published release is immutable: its identity must reproduce from the pinned
+        # commit's builder blob, not from the working-tree builder, which may have moved on.
+        release = release_registry.RELEASES[release_registry.CURRENT_RELEASE]
         manifest = json.loads((delivery.core.HERE / "build_manifest.json").read_text())
-        core_builder = delivery.core.HERE / "build_notebooks.py"
+        _, pinned_builder = release_registry.verify_release_identity(release)
+        self.assertEqual(manifest["implementation_sha256"], release["implementation_sha256"])
         self.assertEqual(manifest["implementation_sha256"], hashlib.sha256(
-            (manifest["source_sha256"] + core_builder.read_text(encoding="utf-8")).encode()).hexdigest())
+            (manifest["source_sha256"] + pinned_builder).encode()).hexdigest())
+        self.assertEqual(manifest["reporting_sha256"], release["reporting_sha256"])
+        self.assertEqual(manifest["existing_score_loader_sha256"], release["existing_score_loader_sha256"])
         self.assertEqual(manifest["existing_score_loader_sha256"], hashlib.sha256(self.loader_text.encode()).hexdigest())
         for item in manifest["notebooks"]:
             path = delivery.core.REPO / item["path"]
