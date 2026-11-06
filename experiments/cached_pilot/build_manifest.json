@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "built_on": "2026-11-06",
+  "implementation_sha256": "6fc9b9cda8dd4c77f7429e12f8d1c1235e182171ac66791f372e356559daf6b2",
+  "embedded_modules": {
+    "inputs": "ef7c11a1774e86cff81e3cccbb34e0a2357901bbc503e230f1a0515165aeaa09",
+    "workflow": "85b27568c2b0608f6f265b328deedc3402c6f9f37d0164e399aa5990bcab7d21",
+    "comparison": "e253bb1ac7757ed53243bbcd0ee412da9a9836a9bab778c1d45c179b71e6255d",
+    "warehouse": "ec0b61c5134b7d8f83dd07e2592c7baf7550c1e34339a59c996a228f8a944bfe",
+    "pipeline": "eb0ec830d5ca1822a3d87be5a72036961e085eca387b70c81ecbab77829ce2fc",
+    "modeling": "3c15a23a8c188c74b02c1eda57a002c16eb3206a638ec0a93dc4774e1982d3fe",
+    "raw_automl": "8f9d5f06f2a2efed2d733ea3efc4277bdf3931195853fc786b5becb04b23c4ce",
+    "settings": "3f820e6de4cb4d37355a7a2e542d1b3dc8a0b03ae61d1c8c81794575b2ba59ad",
+    "time_lgbm": "ecbffb129802863dfc4c400344a39903aa4d8007347ca3e2a0f2464102dab851",
+    "cache": "8c00159e774578d6cf95f55f94376f3ffe09768aec95cf07fae9bfe9cbf35514",
+    "analysis": "b6db9c48b685123115262bdd37e5a0b2c86e5e08fb3b11adf44d4f5dabb1f740",
+    "artifacts": "3a3fbdafbb48d60d5653edef1cf0d21bd3bd84a4c4f346e2442b550dfb851dad"
+  },
+  "tracker_components": {
+    "tracker": "bb10c780ace5f727e946f256168807db5ce35652c50e8596cb2835541fbec112",
+    "evidence": "1cbb6a17207cd9c1d084bef6b44661dcac8190f8411350142869c767ddd8e07c",
+    "decoder": "65901cb2aaf5b49793ed597904872963ff4451e00aaf9ff4fbcf32f54a38b52b"
+  },
+  "files": {
+    "experiments/cached_pilot/analysis.py": "a9c3d4bf6ff1a5f1db38435906bfa4c1c3f02e1114d27d6ded1b642f2720e1d1",
+    "experiments/cached_pilot/artifacts.py": "8148e704f22c8d3f2585c28f89466480618825ec762ea1a947c87a77a0710064",
+    "experiments/cached_pilot/build_comparison.py": "e249638147fbb0faefa2227f0e4e7fa047bdc677287c15e2311f6750c10d0d51",
+    "experiments/cached_pilot/build_tracker.py": "400c6b7b301f97cc27067deabb8ab743233abd149567a7a9d6796ad5c3718d55",
+    "experiments/cached_pilot/cache.py": "8c00159e774578d6cf95f55f94376f3ffe09768aec95cf07fae9bfe9cbf35514",
+    "experiments/cached_pilot/evidence_seed.json": "1cbb6a17207cd9c1d084bef6b44661dcac8190f8411350142869c767ddd8e07c",
+    "experiments/cached_pilot/GENIE_PROMPT.txt": "3cc557e279eb85511dadcc31cba8593c4da5e29d5689165b74e5e0309fcb4b60",
+    "experiments/cached_pilot/HANDOFF_CELL.py": "ce5607bfbd71a4f3e44930c2c5d1ffa829ccc01c78ebd963221e4a00fe306edf",
+    "experiments/cached_pilot/README.md": "6eef660bd050bcd97812cbd907e623263e566ca470256d7428572f4cfe545ab1",
+    "experiments/cached_pilot/test_analysis.py": "5dfb2fa7cc11578a5c542398b9bb1798ac4bc52ed457dc80fc9a1ff401f60b45",
+    "experiments/cached_pilot/test_artifacts.py": "72cfffcd4500bd94e5bcc276582f2928350a88389254504681436a0959ea2a7c",
+    "experiments/cached_pilot/test_cache.py": "6dfec251b3e4c719f57e9d01701d3a28b1bcd122cae7490c1f1025633a0b4e3c",
+    "experiments/cached_pilot/test_tracker.py": "3e6c663759d338f4b7f6bd4fef84e1b116167ae4a6140af1f3e21c2ba962ec4a",
+    "experiments/cached_pilot/tracker.py": "bb10c780ace5f727e946f256168807db5ce35652c50e8596cb2835541fbec112",
+    "experiments/challenger/time_lgbm.py": "be807eb01eb5042d50b248899ae573ab4871610f40f7d1465edc0d0f86284cd2",
+    "notebooks/expanded cohort/07_cached_feature_comparison_AutoML.ipynb": "378a5bb1be4d7b406e506c1b7876a8ce2ff9cb2ce94ff725b6a694db00af769b",
+    "notebooks/expanded cohort/08_experiment_tracker_AutoML.ipynb": "c37beac67637129f802629abf1553559ebf573dbb5e3c7653fc88f7a98e42525",
+    "notebooks/expanded cohort/TAK861_roadmap_11-30_Nov_2026.pptx": "07973ca6ca4a544e97b2c8b0f87792378e7f9a147fa624b6219ee970499c8c50"
+  }
+}

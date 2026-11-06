@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "validated_on": "2026-11-06",
+  "interpreter": "C:\\Users\\prakhar\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe",
+  "python": "3.12.14",
+  "packages": {
+    "numpy": "2.5.3",
+    "pandas": "3.0.1",
+    "scipy": "1.18.1",
+    "scikit-learn": "1.9.1",
+    "lightgbm": "4.6.0",
+    "matplotlib": "3.11.2",
+    "psutil": "not installed locally; memory checks mocked in synthetic tests"
+  },
+  "test_command": "python -m unittest experiments.cached_pilot.test_cache experiments.cached_pilot.test_artifacts experiments.cached_pilot.test_analysis experiments.cached_pilot.test_tracker",
+  "pythonpath": [
+    "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\regularization_runtime",
+    "C:\\Users\\prakhar\\Documents\\Codex\\DLPOC\\work\\final_experiment_runtime"
+  ],
+  "observed_suite": {
+    "tests": 58,
+    "elapsed_seconds": 18.761,
+    "result": "OK",
+    "process_exit_code": 0
+  },
+  "notebook_static_checks": [
+    {
+      "file": "notebooks/expanded cohort/07_cached_feature_comparison_AutoML.ipynb",
+      "code_cells": 6,
+      "syntax": "pass",
+      "outputs": "empty",
+      "connection_values": "empty",
+      "presentation_terms": "pass"
+    },
+    {
+      "file": "notebooks/expanded cohort/08_experiment_tracker_AutoML.ipynb",
+      "code_cells": 6,
+      "syntax": "pass",
+      "outputs": "empty",
+      "connection_values": "empty",
+      "presentation_terms": "pass"
+    }
+  ],
+  "embedded_hashes": "pass",
+  "handoff_syntax": "pass",
+  "synthetic_execution": {
+    "notebook07": "six cells executed with synthetic cache/counts, real 300-tree LightGBM fits; restart reused models",
+    "notebook08": "six cells executed locally; 41 evidence records and five matched charts",
+    "review": "independent local implementation review; no new external reviewer approval claimed",
+    "limitation": "psutil memory availability mocked in local execution; no clinical data or private execution"
+  },
+  "presentation": {
+    "file": "notebooks/expanded cohort/TAK861_roadmap_11-30_Nov_2026.pptx",
+    "sha256": "07973ca6ca4a544e97b2c8b0f87792378e7f9a147fa624b6219ee970499c8c50",
+    "slide_count": 1,
+    "package_integrity": "pass",
+    "layout": "pass; no findings or warnings",
+    "editable_text_and_shapes": true,
+    "visual_review": "rendered preview inspected; no clipping observed",
+    "native_powerpoint_execution": false
+  },
+  "implementation_sha256": "6fc9b9cda8dd4c77f7429e12f8d1c1235e182171ac66791f372e356559daf6b2",
+  "production_execution": false,
+  "remaining": [
+    "Run handoff against the exact live extraction checkpoint",
+    "Measure export and first-fit runtime in the data environment",
+    "Matching NLP artifact/provenance required only for optional NLP arms",
+    "Full extraction and independent later-period production comparison remain separate"
+  ]
+}
