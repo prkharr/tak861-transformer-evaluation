@@ -1,0 +1,254 @@
+{
+  "as_of": "2026-11-17",
+  "evidence_status": "Screenshot-reported clinical outputs; not independently rerun locally",
+  "phase": "R20261030_NEW_SUMMARY",
+  "validation": {
+    "snapshots": 67969,
+    "patients": 3919,
+    "positive_snapshots": 1141,
+    "selected_at_10pct": 6797
+  },
+  "cohort": {
+    "candidate_snapshots": 587460,
+    "in_48_month_window": 449209,
+    "retained_snapshots": 449199,
+    "patients": 25925,
+    "positive_snapshots": 7486,
+    "positive_patients": 2923,
+    "train_snapshots": 315343,
+    "train_patients": 18193,
+    "train_positives": 5166,
+    "test_snapshots": 65887,
+    "test_patients": 3813,
+    "test_positives": 1179
+  },
+  "models": [
+    {
+      "name": "NLP fusion",
+      "code": "NLP_FUSION",
+      "lift10": 2.953506,
+      "lift20": 2.230467,
+      "lift30": 1.898891,
+      "train_lift10": 3.317774,
+      "ap": 0.045134,
+      "auc": 0.693831,
+      "log_loss": 0.192706,
+      "brier": 0.045597,
+      "delta10": 0.420677,
+      "lower": 0.009027,
+      "upper": 0.801666
+    },
+    {
+      "name": "Static fusion",
+      "code": "STATIC_FUSION",
+      "lift10": 2.786988,
+      "lift20": 2.243613,
+      "lift30": 1.913498,
+      "train_lift10": 3.104848,
+      "ap": 0.042786,
+      "auc": 0.698049,
+      "log_loss": 0.16288,
+      "brier": 0.033524,
+      "delta10": 0.254159,
+      "lower": -0.059017,
+      "upper": 0.568484
+    },
+    {
+      "name": "Count Transformer",
+      "code": "COUNT",
+      "lift10": 2.734403,
+      "lift20": 2.094623,
+      "lift30": 1.825857,
+      "train_lift10": 2.948057,
+      "ap": 0.03751,
+      "auc": 0.686662,
+      "log_loss": 0.203732,
+      "brier": 0.045765,
+      "delta10": 0.201575,
+      "lower": -0.203756,
+      "upper": 0.593582
+    },
+    {
+      "name": "Static LightGBM",
+      "code": "LIGHTGBM_TRAIN_ONLY_STATIC",
+      "lift10": 2.532829,
+      "lift20": 2.129679,
+      "lift30": 1.898891
+    }
+  ],
+  "seeds": [
+    42,
+    142,
+    242
+  ],
+  "seed_lifts": {
+    "COUNT": [
+      2.830808,
+      2.66429,
+      2.681819
+    ],
+    "NLP_FUSION": [
+      2.91845,
+      2.944742,
+      3.049911
+    ],
+    "STATIC_FUSION": [
+      2.786988,
+      2.839573,
+      2.743167
+    ]
+  },
+  "selected_epochs": {
+    "COUNT": [
+      12,
+      3,
+      8
+    ],
+    "NLP_FUSION": [
+      4,
+      3,
+      2
+    ],
+    "STATIC_FUSION": [
+      4,
+      4,
+      3
+    ]
+  },
+  "timing_ablation": {
+    "static": {
+      "lift": [
+        2.059567,
+        1.871138,
+        1.668103
+      ],
+      "captures": [
+        235,
+        427,
+        571
+      ]
+    },
+    "static_plus_time": {
+      "lift": [
+        2.445188,
+        2.033274,
+        1.822935
+      ],
+      "captures": [
+        279,
+        464,
+        624
+      ]
+    },
+    "delta": [
+      0.385621,
+      0.162136,
+      0.154833
+    ],
+    "lower": [
+      0.097693,
+      -0.004921,
+      0.032278
+    ],
+    "upper": [
+      0.688769,
+      0.325341,
+      0.262836
+    ],
+    "selected": [
+      6797,
+      13594,
+      20391
+    ],
+    "fixed_train_tree_budget": 1000
+  },
+  "production": {
+    "exact_key_missing": 67969,
+    "status": "BLOCKED / NOT_COMPARABLE"
+  },
+  "historical": {
+    "old_validation": {
+      "snapshots": 3481,
+      "positives": 202,
+      "models": [
+        "Count",
+        "Static fusion",
+        "Temporal fusion",
+        "Static LightGBM"
+      ],
+      "lift10": [
+        2.073846,
+        2.518242,
+        2.715751,
+        2.567619
+      ]
+    },
+    "retrospective_test": {
+      "snapshots": 3414,
+      "positives": 202,
+      "models": [
+        "Experimental LightGBM",
+        "Current temporal fusion",
+        "Warm-start static fusion",
+        "Logistic late fusion",
+        "Current static fusion",
+        "Current count"
+      ],
+      "lift10": [
+        3.163,
+        3.113,
+        3.113,
+        3.064,
+        2.718,
+        2.372
+      ],
+      "temporal_minus_lgbm": -0.049,
+      "lower": -0.645,
+      "upper": 0.599
+    }
+  },
+  "sources": [
+    "User attachments 25C872B1-ABF0-465B-8446-64CDC7D4D3FB: notebook 03 and 04 training/evaluation outputs",
+    "User attachments 099705CC-BFFA-44EA-B88D-8CD0D691074B: notebook 04 and 05 comparison/uncertainty/production coverage",
+    "User attachments 5FD3A08B-3B25-4572-AB44-07B16FE140BA: notebook 06 timing ablation",
+    "User attachments DCC5A0AE-19CE-4AA5-BB68-43A46FC87243: earlier interpretation, treated as secondary commentary",
+    "experiments/challenger/EVIDENCE.md: historical comparisons and source scope",
+    "work/final_experiment_20261006/claude_codex_bridge/TO_CODEX.md: historical review corrections"
+  ],
+  "seed_lift_provenance": {
+    "source": "25C872B1-ABF0-465B-8446-64CDC7D4D3FB, Photo 1 and Photo 5, notebook 03 per-seed results",
+    "static_seed_42": 2.786988,
+    "static_ensemble": 2.786988,
+    "interpretation": "Both values are explicitly reported. Lift is a discrete capture metric; equal top-decile capture counts do not require equal score vectors."
+  },
+  "derived_captures": {
+    "provenance": "Derived from reported lift times capacity times positive prevalence, rounded to the consistent integer values",
+    "NLP_FUSION": [
+      337,
+      509,
+      650
+    ],
+    "STATIC_FUSION": [
+      318,
+      512,
+      655
+    ],
+    "COUNT": [
+      312,
+      478,
+      625
+    ],
+    "LIGHTGBM_TRAIN_ONLY_STATIC": [
+      289,
+      486,
+      650
+    ]
+  },
+  "medbert_pilot_scope": {
+    "seed_count": 1,
+    "max_train_patients": 2000,
+    "max_train_snapshots": 25000,
+    "budget_seconds": 3300,
+    "references": "Existing main-comparison references trained on full TRAIN; scratch versus masked pretraining is the controlled pilot contrast"
+  }
+}

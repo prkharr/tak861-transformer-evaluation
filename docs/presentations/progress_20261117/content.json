@@ -1,0 +1,412 @@
+[
+  {
+    "slide": 1,
+    "text": [
+      "TAK861",
+      "Model development",
+      "progress review",
+      "17 November 2026",
+      "Current validation evidence and the next benchmark",
+      "Development results. Production comparison remains unresolved."
+    ],
+    "notes": [
+      "Progress review. Figures come from supplied notebook screenshots and local historical evidence. No claim of production superiority or untouched holdout performance."
+    ]
+  },
+  {
+    "slide": 2,
+    "text": [
+      "NLP fusion leads the current top-decile comparison",
+      "The evidence supports another bounded round of testing before a production decision",
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled.",
+      "02",
+      "2.954×",
+      "Lift at the top 10%",
+      "+48 positive snapshots versus",
+      "static LightGBM*",
+      "*Derived from reported lift and capacity.",
+      "+16.6% versus static LightGBM",
+      "The paired interval lower bound is just above zero. Replication on a later period remains necessary.",
+      "+44 versus fixed-budget static",
+      "279 versus 235 captures with 1,000-tree fits. Gain versus early-stopped LightGBM is untested.",
+      "Production readiness: exact-date scores and training provenance are still missing."
+    ],
+    "notes": [
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled. Clinical figures are transcribed from supplied screenshots and were not independently rerun locally. Multiple snapshots may refer to the same patient. All current validation estimates condition on prior model development and checkpoint selection."
+    ]
+  },
+  {
+    "slide": 3,
+    "text": [
+      "What we tried",
+      "The work has progressed from a small cohort to reproducible comparisons on expanded histories",
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled.",
+      "03",
+      "Workstream",
+      "Experiment",
+      "What we learned",
+      "Representation",
+      "Counts, static fusion and temporal fusion on the original cohort",
+      "Temporal features were promising. Historical TEST remains retrospective.",
+      "Data expansion",
+      "48-month snapshot window, reconstructed initiation labels and patient splits",
+      "449,199 retained snapshots across 25,925 patients.",
+      "Current models",
+      "Count Transformer, monthly NLP fusion and static AutoML fusion",
+      "NLP fusion leads Lift@10% across the three supplied seeds.",
+      "Conventional model",
+      "Static LightGBM plus a matched timing-feature ablation",
+      "Adds capture to its fixed-budget control. Early-stopped protocol test pending.",
+      "Model combination",
+      "Historical fusion variants and a planned OOF blend",
+      "Blending did not help every configuration. Align scores before fitting a blend."
+    ],
+    "notes": [
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled. Clinical figures are transcribed from supplied screenshots and were not independently rerun locally. Multiple snapshots may refer to the same patient. All current validation estimates condition on prior model development and checkpoint selection. Historical source: experiments/challenger/EVIDENCE.md and experiments/automl_sequence/HISTORICAL_ADDENDUM_FINDINGS.md. The expanded-cohort OOF blend has no supplied result."
+    ]
+  },
+  {
+    "slide": 4,
+    "text": [
+      "Expanded validation has 1,141 positive snapshots",
+      "Patient-disjoint splits share the same 48-month cutoff window. Snapshots exceed patient counts.",
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled.",
+      "04",
+      "449,199",
+      "retained snapshots",
+      "25,925",
+      "unique patients",
+      "1.67%",
+      "positive snapshot rate",
+      "Split",
+      "Snapshots",
+      "Patients",
+      "Positive snapshots",
+      "TRAIN",
+      "315,343",
+      "18,193",
+      "5,166",
+      "Validation",
+      "67,969",
+      "3,919",
+      "1,141",
+      "Retrospective TEST",
+      "65,887",
+      "3,813",
+      "1,179",
+      "Snapshot cutoffs: 19 Feb 2022–19 Jan 2026. TEST remains disabled for current development."
+    ],
+    "notes": [
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled. Clinical figures are transcribed from supplied screenshots and were not independently rerun locally. Multiple snapshots may refer to the same patient. All current validation estimates condition on prior model development and checkpoint selection. Cohort audit: 587,460 candidates, 449,209 inside the 48-month cutoff, 449,199 retained. Reconcile the latest label audit with the bound run before a final claim. Original eligibility producer and source completeness remain unverified. Clinical audit figures are screenshot-reported."
+    ]
+  },
+  {
+    "slide": 5,
+    "text": [
+      "Current inputs combine monthly histories with one AutoML anchor",
+      "SUMMARY uses one AutoML snapshot. A 12-anchor AutoML experiment is a separate next step.",
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled.",
+      "05",
+      "Input stream",
+      "Available tensor",
+      "Current representation",
+      "Counts",
+      "449,199 × 12 × 1,028",
+      "Monthly structured code counts",
+      "NLP",
+      "449,199 × 12 × 256",
+      "Monthly TF-IDF representation fitted on TRAIN",
+      "AutoML summary",
+      "449,199 × 1 × 511",
+      "One cutoff summary anchor in the current phase",
+      "TRAIN-only selection",
+      "Compact models use TRAIN-selected inputs. NLP uses a fixed TF-IDF vocabulary.",
+      "Next representation question",
+      "Test whether richer time structure and code-level pretraining add value under the same split."
+    ],
+    "notes": [
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled. Clinical figures are transcribed from supplied screenshots and were not independently rerun locally. Multiple snapshots may refer to the same patient. All current validation estimates condition on prior model development and checkpoint selection. Source: supplied preparation receipts and current SUMMARY configuration. TF-IDF salience is not outcome importance. Step zero represents the most recent history window. Raw candidates, selected features and final tensor channels are distinct counts."
+    ]
+  },
+  {
+    "slide": 6,
+    "text": [
+      "NLP fusion reaches 2.954× lift at 10% capacity",
+      "Same 67,969 validation snapshots, 1,141 positives and 6,797 selected rows per model",
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled.",
+      "06",
+      "+0.421",
+      "absolute lift versus",
+      "static LightGBM",
+      "+16.6%",
+      "relative lift improvement",
+      "Static LightGBM is a representation control. Augmented models receive additional information."
+    ],
+    "notes": [
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled. Clinical figures are transcribed from supplied screenshots and were not independently rerun locally. Multiple snapshots may refer to the same patient. All current validation estimates condition on prior model development and checkpoint selection."
+    ]
+  },
+  {
+    "slide": 7,
+    "text": [
+      "Only NLP’s 10% interval excludes zero",
+      "Paired patient-bootstrap intervals compare each model with the static LightGBM control",
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled.",
+      "07",
+      "Model",
+      "Lift difference",
+      "95% interval",
+      "Excludes zero",
+      "NLP fusion",
+      "+0.421",
+      "[+0.009, +0.802]",
+      "Yes",
+      "Static fusion",
+      "+0.254",
+      "[−0.059, +0.568]",
+      "No",
+      "Count Transformer",
+      "+0.202",
+      "[−0.204, +0.594]",
+      "No",
+      "20% and 30% capacity",
+      "Every model-minus-LightGBM interval at these wider capacities includes zero.",
+      "Selection still matters",
+      "All four arms used validation for selection. These intervals do not establish an independent production gain."
+    ],
+    "notes": [
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled. Clinical figures are transcribed from supplied screenshots and were not independently rerun locally. Multiple snapshots may refer to the same patient. All current validation estimates condition on prior model development and checkpoint selection. Exact values: NLP delta .420677, CI [.009027,.801666]; static .254159, [-.059017,.568484]; count .201575, [-.203756,.593582]. At top20% and top30%, all supplied model-minus-LightGBM intervals include zero."
+    ]
+  },
+  {
+    "slide": 8,
+    "text": [
+      "Early stopping limits, but does not remove, overfitting",
+      "Training lift exceeds validation lift. Later epochs improve training while validation often stalls.",
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled.",
+      "08",
+      "0.21–0.36",
+      "absolute train-to-validation",
+      "lift gap at selected checkpoints",
+      "7–11%",
+      "relative to training lift",
+      "The results do not show catastrophic collapse. They also do not justify a claim of “no overfitting.”"
+    ],
+    "notes": [
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled. Clinical figures are transcribed from supplied screenshots and were not independently rerun locally. Multiple snapshots may refer to the same patient. All current validation estimates condition on prior model development and checkpoint selection."
+    ]
+  },
+  {
+    "slide": 9,
+    "text": [
+      "NLP fusion leads in all three reported seeds",
+      "Seed variation supports the ranking, but three seeds do not replace independent validation",
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled.",
+      "09",
+      "Selected epochs",
+      "NLP fusion: 2–4",
+      "Static fusion: 3–4",
+      "Count: 3–12",
+      "The final comparison uses averaged predictions. It is not the mean of these seed lifts."
+    ],
+    "notes": [
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled. Clinical figures are transcribed from supplied screenshots and were not independently rerun locally. Multiple snapshots may refer to the same patient. All current validation estimates condition on prior model development and checkpoint selection. STATIC_FUSION seed 42 and the ensemble both report Lift@10%=2.786988 in the supplied notebook 03 and 04 outputs. Rechecked against first attachment batch Photo 1 and Photo 5. The discrete capture metric can be equal for different score vectors, so the reported value is retained."
+    ]
+  },
+  {
+    "slide": 10,
+    "text": [
+      "Timing features add 44 positive captures",
+      "Paired LightGBM ablation with identical validation rows and a fixed TRAIN-only tree budget",
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled.",
+      "10",
+      "+44",
+      "positive snapshots at 10% capacity",
+      "2.060×  to  2.445×",
+      "Lift difference +0.386",
+      "95% interval [+0.098, +0.689]",
+      "Timing adds signal to the fixed-budget fit. Gain under the early-stopped NB05 protocol remains untested."
+    ],
+    "notes": [
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled. Clinical figures are transcribed from supplied screenshots and were not independently rerun locally. Multiple snapshots may refer to the same patient. All current validation estimates condition on prior model development and checkpoint selection. Features use monthly sleep-study procedure and sleep-wake diagnosis histories. STATIC_PLUS_TIME captured279/464/624 at10/20/30%, versus235/427/571. At20% delta.162136CI[-.004921,.325341]; at30% delta.154833CI[.032278,.262836]. 1,000-tree fixed TRAIN-only budget. Counts are snapshots, not unique patients."
+    ]
+  },
+  {
+    "slide": 11,
+    "text": [
+      "Production benchmarking is blocked by score coverage",
+      "The current production table has no exact patient-date match for the expanded validation rows",
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled.",
+      "11",
+      "0 / 67,969",
+      "validation snapshots with an",
+      "exact-key production score",
+      "No production lift is available",
+      "for this comparison.",
+      "Required scoring evidence",
+      "Frozen model and input definitions, historical feature vintage, exact cutoff dates and complete score coverage.",
+      "Required training evidence",
+      "Training cutoff and patient membership, plus target alignment. Same-row scoring alone cannot establish independence."
+    ],
+    "notes": [
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled. Clinical figures are transcribed from supplied screenshots and were not independently rerun locally. Multiple snapshots may refer to the same patient. All current validation estimates condition on prior model development and checkpoint selection. The supplied notebook05 prints all67969missing exact keys, PRODUCTION_FROZEN_SCORES=NaN and BLOCKED. Existing models still have controlled development results; NOT_COMPARABLE pertains to production comparison. No nearest-date or intersection fallback. Historical4.592score was a different population and has unverified fit overlap."
+    ]
+  },
+  {
+    "slide": 12,
+    "text": [
+      "Next steps prioritize signal and a valid decision",
+      "Advance the strongest evidence while preserving a later-period confirmation set",
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled.",
+      "12",
+      "Priority",
+      "Next experiment or dependency",
+      "Decision criterion",
+      "1",
+      "Align production scores and training provenance",
+      "Same population and known fit membership",
+      "2",
+      "Retest timing in NB05, then fusion / 12-anchor AutoML",
+      "Gain on identical keys with paired uncertainty",
+      "3",
+      "Bounded Med-BERT-style pretraining benchmark",
+      "Pretraining gain versus scratch and compute used",
+      "4",
+      "Fit one blend using TRAIN out-of-fold scores",
+      "Beat both parents on the same validation rows",
+      "5",
+      "Freeze one candidate for a later-period test",
+      "Mature outcomes and a pre-agreed capture gain",
+      "Source completeness, eligibility provenance and treatment/claim-status definitions remain evidence checks."
+    ],
+    "notes": [
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled. Clinical figures are transcribed from supplied screenshots and were not independently rerun locally. Multiple snapshots may refer to the same patient. All current validation estimates condition on prior model development and checkpoint selection. Confirm label-correction timing against the bound run. Secondary commentary is not a new target-change instruction. Zolpidem and reversed/rejected-claim concerns from secondary commentary need source/target verification before any label change. If timing adds little, prior therapy changes/diversity is a separate predeclared fallback. Blend weights must come from patient-grouped out-of-fold TRAIN predictions. Transcript commitments: settings11:05, sequentialAutoML12:24–12:45, Med-BERT13:07–13:25, later-period confirmation13:46–14:04."
+    ]
+  },
+  {
+    "slide": 13,
+    "text": [
+      "Med-BERT-style benchmark will test code pretraining",
+      "Official pretrained weights are unavailable. This experiment adapts the method to monthly histories.",
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled.",
+      "13",
+      "Stage",
+      "Implementation intent",
+      "Evidence returned",
+      "Input contract",
+      "Code-presence tokens from monthly counts",
+      "Up to 2,000 TRAIN patients / 25,000 snapshots",
+      "Training comparison",
+      "TRAIN masked pretraining, then fine-tuning",
+      "One seed. Matched scratch control.",
+      "Validation",
+      "Score the same complete validation keys",
+      "Lift@10/20/30, captures, AP and paired uncertainty",
+      "Runtime control",
+      "Cached tensors with a 55-minute budget",
+      "Elapsed time and completion status",
+      "One-hour target depends on load time and hardware. Monthly tokens differ from original Med-BERT inputs. Existing benchmark references used full TRAIN."
+    ],
+    "notes": [
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled. Clinical figures are transcribed from supplied screenshots and were not independently rerun locally. Multiple snapshots may refer to the same patient. All current validation estimates condition on prior model development and checkpoint selection. Planned benchmark, no measured Med-BERT lift. A compact monthly code-token adaptation differs from the published structured-EHR Med-BERT and must be labelled accordingly. Current TF-IDF or aggregated count vectors cannot simply be passed into a pretrained diagnosis vocabulary. Checkpoint use needs a verified compatible vocabulary and architecture. Authoritative background: Rasmy et al., Med-BERT, npj Digital Medicine (2021), https://www.nature.com/articles/s41746-021-00455-y and https://github.com/ZhiGroup/Med-BERT."
+    ]
+  },
+  {
+    "slide": 14,
+    "text": [
+      "Historical results motivate temporal features, with limits",
+      "Original validation is a separate cohort from today’s expanded results",
+      "Historical screenshot-reported results and local EVIDENCE.md. Comparisons belong to their original split.",
+      "14",
+      "3,481",
+      "validation snapshots",
+      "202 positive snapshots",
+      "2.716 vs 2.568",
+      "Temporal fusion versus",
+      "static LightGBM",
+      "The rounded results imply three extra positive captures at 349-slot capacity. No paired interval was supplied."
+    ],
+    "notes": [
+      "Historical screenshot-reported results and local EVIDENCE.md. Comparisons belong to their original split. Clinical figures are transcribed from supplied screenshots and were not independently rerun locally. Multiple snapshots may refer to the same patient. All current validation estimates condition on prior model development and checkpoint selection."
+    ]
+  },
+  {
+    "slide": 15,
+    "text": [
+      "Historical TEST did not resolve the model ranking",
+      "Retrospective TEST had prior inspection and upstream feature-selection limitations",
+      "Historical screenshot-reported results and local EVIDENCE.md. This is not an untouched holdout.",
+      "15",
+      "Model on original retrospective TEST",
+      "Lift@10%",
+      "Interpretation",
+      "Experimental AutoML LightGBM",
+      "3.163",
+      "64 implied captures",
+      "Current temporal fusion",
+      "3.113",
+      "63 implied captures",
+      "Warm-start static fusion",
+      "3.113",
+      "Distinct model, same rounded lift",
+      "Logistic late fusion",
+      "3.064",
+      "Alternative combination",
+      "Current static fusion / count",
+      "2.718 / 2.372",
+      "Same current model family",
+      "Temporal minus LightGBM: −0.049, paired 95% interval [−0.645, +0.599]",
+      "The interval leaves the ranking unresolved. It does not establish equivalence."
+    ],
+    "notes": [
+      "Historical screenshot-reported results and local EVIDENCE.md. This is not an untouched holdout. Clinical figures are transcribed from supplied screenshots and were not independently rerun locally. Multiple snapshots may refer to the same patient. All current validation estimates condition on prior model development and checkpoint selection. Original retrospectiveTEST3414snapshots202positives. Earlier representation+AutoMLLightGBMhead2.669versusrepresentationalone2.817showscombinationdoesnotalwayshelp. Earlier lockedcount2.866isadifferentrunfromcurrentcount2.372. Historicalproduction4.592andV63-styleTRAINrefit2.52belongtoanothercontrastandhaveunverifiedtrainingoverlap. No direct link from these scores to the expanded benchmark."
+    ]
+  },
+  {
+    "slide": 16,
+    "text": [
+      "Current metrics and capacity trade-offs",
+      "Static fusion leads at 20% and 30%. NLP ties static LightGBM at 30% capacity.",
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled.",
+      "16",
+      "Model",
+      "Lift@10%",
+      "Lift@20%",
+      "Lift@30%",
+      "AP",
+      "ROC-AUC",
+      "NLP fusion",
+      "2.954",
+      "2.230",
+      "1.899",
+      "0.0451",
+      "0.6938",
+      "Static fusion",
+      "2.787",
+      "2.244",
+      "1.913",
+      "0.0428",
+      "0.6980",
+      "Count Transformer",
+      "2.734",
+      "2.095",
+      "1.826",
+      "0.0375",
+      "0.6867",
+      "Static LightGBM",
+      "2.533",
+      "2.130",
+      "1.899",
+      "—",
+      "—",
+      "Metric definition",
+      "Lift equals the positive rate in the selected top fraction divided by the overall positive rate.",
+      "Interpretation",
+      "Derived captures: NLP 509 versus static fusion 512 at 20%, then both NLP and LightGBM 650 at 30%.",
+      "Captures derive from reported lift and capacity."
+    ],
+    "notes": [
+      "Screenshot-reported Databricks results, 17 Nov 2026. Development validation, TEST disabled. Clinical figures are transcribed from supplied screenshots and were not independently rerun locally. Multiple snapshots may refer to the same patient. All current validation estimates condition on prior model development and checkpoint selection. *Captures derive from reported lift and capacity, rounded to the consistent integer counts. AP and AUC for static LightGBM are unavailable in the supplied comparison and remain blank. Validation prevalence is 1141/67969=1.6787%. Exact scores and patient-cluster bootstrap are needed for new paired comparisons. Low AP needs prevalence context. Captures are snapshots. Unique-patient contact decisions need patient-level reporting."
+    ]
+  }
+]

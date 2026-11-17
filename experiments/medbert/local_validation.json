@@ -1,0 +1,23 @@
+{
+  "status": "PASS",
+  "tests": 10,
+  "failures": 0,
+  "errors": 0,
+  "seconds": 10.047000000020489,
+  "scope": "Synthetic CPU execution only. No private data queried; clinical runtime and performance unverified. Tests did not mutate delivered notebook.",
+  "python": "3.12.14",
+  "versions": {
+    "numpy": "2.5.3",
+    "pandas": "3.0.1",
+    "torch": "2.15.0+cpu",
+    "scikit-learn": "1.9.1",
+    "matplotlib": "3.11.2"
+  },
+  "files": {
+    "experiments/medbert/benchmark.py": "99d3eb3d4eda1406ed1db11ff07ae9595fb325f2b89c1de1b62a4d99c9214f25",
+    "experiments/medbert/build_notebook.py": "678ddf9024a9aecb35623c46a8231ba7a6a324561b1b2ee5839d247abfd56b4c",
+    "experiments/medbert/test_benchmark.py": "e4965432312995fc69ce0fe532d7ce2c2ea7a063247b44b39c861375caa47b35",
+    "experiments/medbert/README.md": "6cd32c94136f8c8f7e80e7baeee854186130c26614e38b04962e6d89931a551b",
+    "notebooks/expanded cohort/09_medbert_monthly_benchmark.ipynb": "b931bc1e7ed7e1c07e85733ce1de81436eb85f7cebb160adefb3307deec1297d"
+  }
+}

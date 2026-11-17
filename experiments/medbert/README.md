@@ -1,0 +1,29 @@
+# Monthly masked-code benchmark
+
+Run `notebooks/expanded cohort/09_medbert_monthly_benchmark.ipynb` after the current expanded-cohort notebooks 01–05 have completed. Fill the blank `sf_options` in its first cell inside the existing private Databricks runtime. The source run defaults to `R20261030_NEW_SUMMARY`, matching the supplied outputs. It loads the verified cached tensor package and preparation. It does not repeat source extraction or overwrite existing experiments.
+
+This implements a **Med-BERT-inspired adaptation with local masked-code pretraining**, not transfer from the original pretrained weights. The [original repository](https://github.com/ZhiGroup/Med-BERT#sharing-pre-trained-model) says its pretrained weights are no longer shareable. [Rasmy et al. (2021)](https://doi.org/10.1038/s41746-021-00455-y) describes structured diagnosis-code pretraining. Our available inputs contain monthly claims feature groups, rather than ordered encounter-level ICD codes, and contain no suitable prolonged-stay pretraining target. The notebook therefore uses masked-code prediction only and makes no replication or paper-performance claim.
+
+## What runs
+
+- Frozen count tensor, explicit month masks and patient-level splits from the existing verified loader. No new cohort or split.
+- Diagnosis/procedure/prescription channels only, with explicit `DX__`, `PX__`, `RX__` prefixes. Demographics and continuous context do not become code tokens.
+- Label-independent TRAIN patient sample capped at 2,000 patients and 25,000 snapshots. Vocabulary contains only code groups observed in those TRAIN rows. Unseen validation groups become `[UNK]`.
+- Up to five present code groups per month, selected by that month's count with frozen dictionary tie-breaking. The total length is at most 61 tokens. Oldest-to-newest month serialization preserves the source's `0=newest` meaning. Codes within a month have no positional ordering. Missing months have no attended tokens; observed empty months have an explicit token.
+- One small bidirectional Transformer initialized from scratch, plus the identical architecture initialized from the same weights and then pretrained on TRAIN only. Dynamic 15% masking uses 80/10/10 replacement and hides frequency buckets at selected positions. The count bucket is a fixed clipped `1 + floor(log2(count))` rule.
+- Both arms fine-tune on the identical bounded TRAIN subset with patient weights, square-root class balancing and validation Lift@10% checkpoint selection. Same configured fine-tuning step caps and seed. Their actual completed steps and epochs are recorded because runtime limits can truncate either arm.
+- Every reported arm scores the complete frozen validation population. TEST arrays are present in the inherited all-split archive, but no TEST rows are tokenized, fitted, scored, or used for selection.
+
+## Runtime and comparison scope
+
+The default cooperative budget is **3,300 seconds**, measured from the first cell, including cached input loading. Maximum pretraining steps, sequence length, sample size and fine-tuning epochs are bounded. An inference preflight estimates complete-validation cost and rejects configurations that cannot reserve sufficient time. Training retains time for validation, paired bootstrap and saving. This is a one-hour target, not a hardware-independent guarantee: a blocking warehouse call, archive validation or single device kernel cannot be preempted by the Python clock checks. A GPU is preferable; CPU support includes a measured preflight.
+
+Runtime dependencies must already be available: NumPy, pandas, scikit-learn, PyTorch and matplotlib, plus the existing Spark/Snowflake connector. The notebook does not install packages or restart the session. Raw counts remain memory-mapped through the inherited loader; tokenization reads row/batch slices and does not copy the full count tensor. Sufficient local scratch for the existing archive loader is still required.
+
+The scratch arm is the controlled pretraining comparison. Saved COUNT, STATIC_FUSION, NLP_FUSION and available NB05 static LightGBM predictions are contextual references on exactly the same validation rows. Their original larger training samples and fitting budgets differ. Source, lock, preparation and prediction hashes are checked before comparison. Outputs include lift and positive snapshot captures at 10/20/30%, secondary AP/AUC/log loss, and paired patient-cluster bootstrap intervals against scratch, saved LightGBM and NLP where available. This bounded pilot defaults to **200 draws at 95% confidence**, with requested and valid draw counts printed alongside each interval. These pilot intervals have coarser Monte Carlo precision than the main experiment's 1,000-draw intervals. Validation selected the checkpoints, so these remain optimistic development estimates. A short undertrained pilot cannot establish or reject the benefit of a full Med-BERT program.
+
+## Artifacts
+
+The immutable table suffix is `_MEDBERT_MONTHLY_V1_<identity hash>`. Identity includes the source module, count contract, input manifest, TRAIN subset, validation row order, vocabulary, configuration, runtime version and benchmark score hashes. Saved payloads include vocabulary, weights for both arms, pretraining loss/time receipt, validation arrays and the aggregate report. Resume requires matching identity and every payload checksum. Failed or incomplete validation never saves a completed comparison.
+
+The notebook contains code cells only and no saved output. Rebuild with Python 3.10 or later using `python -m experiments.medbert.build_notebook`. Synthetic validation uses `python -m unittest experiments.medbert.test_benchmark -v`; it performs actual small CPU pretraining/fine-tuning and executes the generated notebook's benchmark/report cells against synthetic artifacts. Tests generate temporary notebooks and do not rewrite the delivered file.
