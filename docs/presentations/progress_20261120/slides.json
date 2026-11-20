@@ -11,7 +11,7 @@
     "items": [
       [
         "Starting point",
-        "Production uses a 49-feature LightGBM model to support HCP targeting. Its historical reported lift is approximately 4.59."
+        "The 49-feature LightGBM supports HCP targeting. Reported historical lift: 4.59. Its population and evaluation differ; this is not a matched development comparison."
       ],
       [
         "What we are adding",
@@ -37,7 +37,7 @@
       [
         "Historical representation",
         "Counts, selected features and monthly / quarterly models",
-        "Real history matters; repeating a static snapshot does not create trends."
+        "Use real monthly history; repeated static snapshots are not history."
       ],
       [
         "Data and evaluation",
@@ -47,7 +47,7 @@
       [
         "Model development",
         "Static, NLP and timing augmentation",
-        "NLP leads at 10%; timing adds value in a matched experiment."
+        "NLP leads at 10%; timing helped a fixed-budget matched control."
       ],
       [
         "Pretrained models",
@@ -122,7 +122,7 @@
   },
   {
     "title": "NLP fusion leads the current top-10% ranking",
-    "sub": "Same 67,969 validation snapshots and 6,797 selected snapshots per model.",
+    "sub": "2.954 versus 2.533: +16.6%, or 48 additional positive snapshots at the same 10% capacity.",
     "kind": "chart",
     "categories": [
       "Static LightGBM",
@@ -138,16 +138,16 @@
     ],
     "max": 3.4,
     "metric": "Validation Lift@10%",
-    "takeaway": "2.954 lift versus 2.533 for static LightGBM: +16.6%, or 48 additional positive snapshots.",
+    "takeaway": "Paired lift interval: +0.009 to +0.802. NLP leads at 10%; static fusion leads slightly at 20% and 30%.",
     "note": "Development validation. Added information differs across models. Lift is selected positive rate divided by overall positive rate."
   },
   {
     "title": "Timing features improved their matched control",
-    "sub": "A separate experiment held the patient population and tree budget fixed.",
+    "sub": "Both arms use 1,000 trees without early stopping. Timing added 44 positive snapshots: 235 to 279.",
     "kind": "chart",
     "categories": [
-      "Static control",
-      "Static + timing"
+      "Fixed-budget static",
+      "Fixed-budget static + timing"
     ],
     "values": [
       2.059567,
@@ -155,7 +155,7 @@
     ],
     "max": 3.0,
     "metric": "Validation Lift@10%",
-    "takeaway": "279 versus 235 positive snapshots captured at 10% capacity: 44 additional captures.",
+    "takeaway": "The timing arm still trails the earlier early-stopped static control: 279 versus 289 captures. Tune them under one protocol next.",
     "note": "Paired lift difference +0.386; 95% interval [+0.098, +0.689]. Gain versus the stronger early-stopped baseline is untested."
   },
   {
@@ -170,7 +170,7 @@
       ],
       [
         "Feature reduction can help",
-        "TRAIN logistic AP: 0.156 to approximately 0.193â€“0.195",
+        "Original cohort, latest snapshot per patient: TRAIN-fold logistic AP 0.156 to about 0.19",
         "Select inside training folds; do not assume the same gain for every model."
       ],
       [
@@ -241,18 +241,16 @@
     "kind": "chart",
     "categories": [
       "Local masked pretraining",
-      "Matched scratch",
-      "Existing NLP fusion"
+      "Matched scratch"
     ],
     "values": [
       1.367202,
-      1.735294,
-      2.953506
+      1.735294
     ],
-    "max": 3.4,
+    "max": 2.1,
     "metric": "Validation Lift@10%",
-    "takeaway": "Both token models improved through epoch 3. This short run does not establish the value of longer pretraining.",
-    "note": "Token arms used the same bounded TRAIN subset. Existing NLP fusion used full TRAIN. Original pretrained Med-BERT weights were not used."
+    "takeaway": "156 versus 198 positive snapshots captured. Both models were still improving at epoch 3; longer training remains untested.",
+    "note": "Reported development run, same bounded TRAIN subset. Original pretrained Med-BERT weights were not used."
   },
   {
     "title": "Pretrained biomedical text integration is ready to test",
@@ -286,7 +284,7 @@
       ],
       [
         "1",
-        "Tune static and time-aware LightGBM under one protocol",
+        "Tune static and time-aware LightGBM with TRAIN-only early stopping",
         "Timing already improved a matched control."
       ],
       [

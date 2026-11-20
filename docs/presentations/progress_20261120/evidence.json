@@ -1,0 +1,55 @@
+{
+  "date": "2026-11-20",
+  "previous_evidence": "../progress_20261117/evidence.json",
+  "historical_sources": [
+    "experiments/challenger/EVIDENCE.md",
+    "experiments/automl_sequence/HISTORICAL_ADDENDUM_FINDINGS.md",
+    "docs/architecture/render_structure.py"
+  ],
+  "monthly_pilot": {
+    "source": "User-provided notebook 09 execution outputs",
+    "artifact": "TAK861_AUTOML_SEQUENCE_V1_R20261030_NEW_SUMMARY_MEDBERT_MONTHLY_V1_B63517E25E30",
+    "scope": "reported results; private warehouse artifact not independently read in this workspace",
+    "scratch": {
+      "lift10": 1.735294,
+      "ap": 0.023373,
+      "auc": 0.585604,
+      "epoch_lifts": [
+        1.209448,
+        1.488999,
+        1.735294
+      ]
+    },
+    "mlm": {
+      "lift10": 1.367202,
+      "ap": 0.018989,
+      "auc": 0.533879,
+      "epoch_lifts": [
+        0.841355,
+        1.104278,
+        1.367202
+      ]
+    },
+    "fine_tuning": {
+      "epochs": 3,
+      "steps_per_epoch": 98,
+      "budget_truncated": false
+    },
+    "mlm_minus_scratch": {
+      "delta": -0.368093,
+      "lower": -0.681264,
+      "upper": -0.064846,
+      "draws": 200
+    },
+    "captures": "Derived: 156 and 198 positive snapshots from reported lift and capacity; not unique patients"
+  },
+  "pretrained_transfer": {
+    "validation": "experiments/medbert/transfer_validation.json",
+    "source": "experiments/medbert/pretrained_transfer.py",
+    "clinical_results": "pending"
+  },
+  "review": {
+    "status": "reviewed; applicable comparison/readability findings addressed",
+    "checksum_comment": "Already resolved in commit 40c612a: expected published hashes are pinned and compared."
+  }
+}

@@ -1,7 +1,7 @@
 {
   "schemaVersion": "presentation-finalization.v1",
-  "finalSha256": "07221b8f7c0938ba164328fcf6f4d2bf6603bd15edcaf64acf7bbd169150246e",
-  "byteCount": 70072,
+  "finalSha256": "0513601b1af784872d3dbe571384517cbb077dc203a91e4f512df0c85e554b03",
+  "byteCount": 70081,
   "packageIntegrity": {
     "chart_count": 3,
     "claim_boundary": "Structural package checks only; no slide text, notes, formulas, chart values, or native PowerPoint execution were inspected.",
@@ -75,7 +75,7 @@
     "performed": true,
     "passed": true,
     "slideCount": 14,
-    "sha256": "07221b8f7c0938ba164328fcf6f4d2bf6603bd15edcaf64acf7bbd169150246e",
+    "sha256": "0513601b1af784872d3dbe571384517cbb077dc203a91e4f512df0c85e554b03",
     "runtimeNodeModules": "C:/Program Files/WindowsApps/OpenAI.CodexPrimaryRuntime.v26-1116-1210-0_26.1116.1210.0_x64__3k8sg7r9htsxt/dependencies/node/node_modules",
     "nodeExecutable": "C:\\Program Files\\WindowsApps\\OpenAI.CodexPrimaryRuntime.v26-1116-1210-0_26.1116.1210.0_x64__3k8sg7r9htsxt\\dependencies\\node\\bin\\node.exe"
   },
@@ -155,7 +155,7 @@
     "native_chart_count": 3,
     "native_powerpoint_verified": false,
     "passed": true,
-    "presentation_sha256": "07221b8f7c0938ba164328fcf6f4d2bf6603bd15edcaf64acf7bbd169150246e",
+    "presentation_sha256": "0513601b1af784872d3dbe571384517cbb077dc203a91e4f512df0c85e554b03",
     "schema_version": "presentation-native-chart-titles.v1",
     "slide_count": 14,
     "source_text_emitted": false,
@@ -209,7 +209,7 @@
       "failed_slides": [],
       "formal_human_reviewed": false,
       "native_application_open_verified": false,
-      "package_sha256": "07221b8f7c0938ba164328fcf6f4d2bf6603bd15edcaf64acf7bbd169150246e",
+      "package_sha256": "0513601b1af784872d3dbe571384517cbb077dc203a91e4f512df0c85e554b03",
       "passed": true,
       "results": [
         {
@@ -266,9 +266,9 @@
               "native_chart_types": [
                 "barChart"
               ],
-              "numeric_cache_point_count": 3,
+              "numeric_cache_point_count": 2,
               "series_formula_count": 2,
-              "workbook_numeric_cell_count": 3
+              "workbook_numeric_cell_count": 2
             }
           ],
           "failure_codes": [],
@@ -314,7 +314,7 @@
       {
         "chart_part": "ppt/slides/charts/chart3.xml",
         "owner_slide": 10,
-        "point_count": 3,
+        "point_count": 2,
         "series_count": 1,
         "workbook_part": "ppt/embeddings/chart-data-snapshot-003.xlsx"
       }
@@ -325,10 +325,10 @@
       10
     ],
     "experimental": true,
-    "input_sha256": "b3c8a3662381c569519a5ffd435c7b90ac32c630cf3d8ac07cbb93582f7d092a",
+    "input_sha256": "d2df8785f7d53eb83f5f5efb6be066ef69d396af7ddda3a8a35382fbd6904400",
     "new_formulas_describe_snapshot_only": true,
-    "output_bytes": 70072,
-    "output_sha256": "07221b8f7c0938ba164328fcf6f4d2bf6603bd15edcaf64acf7bbd169150246e",
+    "output_bytes": 70081,
+    "output_sha256": "0513601b1af784872d3dbe571384517cbb077dc203a91e4f512df0c85e554b03",
     "portable_chart_validation_passed": true,
     "portable_validated_owner_slides": [
       6,
