@@ -1,0 +1,397 @@
+[
+  {
+    "title": "Deep learning proof of concept",
+    "sub": "TAK861 | Progress through 20 November 2026",
+    "kind": "cover"
+  },
+  {
+    "title": "The goal is better patient identification",
+    "sub": "Find more patients likely to initiate advanced therapy at the same targeting capacity.",
+    "kind": "columns",
+    "items": [
+      [
+        "Starting point",
+        "Production uses a 49-feature LightGBM model to support HCP targeting. Its historical reported lift is approximately 4.59."
+      ],
+      [
+        "What we are adding",
+        "Monthly medical histories, richer feature representations and controlled model comparisons. Business rules stay unchanged."
+      ],
+      [
+        "How value is measured",
+        "More positive patients captured for the same outreach capacity. Current experiments measure patient-date snapshots; unique-patient reporting is the next bridge to targeting."
+      ]
+    ],
+    "note": "Historical production lift belongs to its original evaluation. A matched production comparison is deferred."
+  },
+  {
+    "title": "The PoC has advanced across four workstreams",
+    "sub": "Progress includes stronger inputs and evaluation discipline as well as model development.",
+    "kind": "table",
+    "rows": [
+      [
+        "Workstream",
+        "What changed",
+        "What we learned"
+      ],
+      [
+        "Historical representation",
+        "Counts, selected features and monthly / quarterly models",
+        "Real history matters; repeating a static snapshot does not create trends."
+      ],
+      [
+        "Data and evaluation",
+        "Expanded cohort and patient-separated splits",
+        "Compare models on the same rows and keep learned selection within TRAIN."
+      ],
+      [
+        "Model development",
+        "Static, NLP and timing augmentation",
+        "NLP leads at 10%; timing adds value in a matched experiment."
+      ],
+      [
+        "Pretrained models",
+        "Local masked pretraining, then genuine biomedical text embeddings",
+        "The local pilot underperformed; pretrained text integration is ready for evaluation."
+      ]
+    ],
+    "widths": [
+      240,
+      440,
+      485
+    ]
+  },
+  {
+    "title": "A common data foundation supports fair comparisons",
+    "sub": "The expanded cohort contains 449,199 snapshots from 25,925 patients.",
+    "kind": "table",
+    "rows": [
+      [
+        "Population",
+        "Snapshots",
+        "Patients",
+        "Positive snapshots"
+      ],
+      [
+        "Training",
+        "315,343",
+        "18,193",
+        "5,166"
+      ],
+      [
+        "Validation",
+        "67,969",
+        "3,919",
+        "1,141"
+      ],
+      [
+        "Reserved test partition",
+        "65,887",
+        "3,813",
+        "1,179"
+      ]
+    ],
+    "widths": [
+      350,
+      270,
+      230,
+      315
+    ],
+    "takeaway": "All current model comparisons use the same validation rows. A snapshot is one patient at one date.",
+    "note": "Patient-separated splits. Current development does not score TEST. Snapshot window: February 2022 to January 2026."
+  },
+  {
+    "title": "Medical histories enrich the original tabular approach",
+    "sub": "The current phase combines twelve monthly history windows with one AutoML summary anchor.",
+    "kind": "columns",
+    "items": [
+      [
+        "Structured counts",
+        "Diagnosis, procedure and prescription activity describe what happened and how frequently."
+      ],
+      [
+        "Medical-code text",
+        "Monthly text representations of medical codes add information about the types of recorded activity. These are not clinical notes."
+      ],
+      [
+        "Timing and context",
+        "Static AutoML features provide context. Sleep-study and sleep-wake timing features test whether recency adds predictive value."
+      ]
+    ],
+    "note": "A full twelve-anchor historical AutoML panel remains a separate experiment."
+  },
+  {
+    "title": "NLP fusion leads the current top-10% ranking",
+    "sub": "Same 67,969 validation snapshots and 6,797 selected snapshots per model.",
+    "kind": "chart",
+    "categories": [
+      "Static LightGBM",
+      "Count Transformer",
+      "Static fusion",
+      "NLP fusion"
+    ],
+    "values": [
+      2.532829,
+      2.734403,
+      2.786988,
+      2.953506
+    ],
+    "max": 3.4,
+    "metric": "Validation Lift@10%",
+    "takeaway": "2.954 lift versus 2.533 for static LightGBM: +16.6%, or 48 additional positive snapshots.",
+    "note": "Development validation. Added information differs across models. Lift is selected positive rate divided by overall positive rate."
+  },
+  {
+    "title": "Timing features improved their matched control",
+    "sub": "A separate experiment held the patient population and tree budget fixed.",
+    "kind": "chart",
+    "categories": [
+      "Static control",
+      "Static + timing"
+    ],
+    "values": [
+      2.059567,
+      2.445188
+    ],
+    "max": 3.0,
+    "metric": "Validation Lift@10%",
+    "takeaway": "279 versus 235 positive snapshots captured at 10% capacity: 44 additional captures.",
+    "note": "Paired lift difference +0.386; 95% interval [+0.098, +0.689]. Gain versus the stronger early-stopped baseline is untested."
+  },
+  {
+    "title": "The earlier experiments sharpened our approach",
+    "sub": "Useful lessons from feature selection and model combinations.",
+    "kind": "table",
+    "rows": [
+      [
+        "Observation",
+        "Evidence",
+        "Implication"
+      ],
+      [
+        "Feature reduction can help",
+        "TRAIN logistic AP: 0.156 to approximately 0.193â€“0.195",
+        "Select inside training folds; do not assume the same gain for every model."
+      ],
+      [
+        "Fusion is not automatically better",
+        "Historical LightGBM 3.163 vs warm-start fusion 3.113",
+        "Keep strong tabular controls and test complementary captures."
+      ],
+      [
+        "Some earlier comparisons were compromised",
+        "Upstream feature processing used outcomes beyond TRAIN",
+        "Use fold-specific fitting and treat older results as exploratory."
+      ],
+      [
+        "The 49-feature refit already exists",
+        "Approximately 2.52 on original validation",
+        "Reuse its record; do not present it as a new experiment."
+      ]
+    ],
+    "widths": [
+      310,
+      420,
+      435
+    ],
+    "note": "Historical results use different populations and metrics. They do not form a single comparable leaderboard."
+  },
+  {
+    "title": "Model stability is encouraging, but confirmation remains",
+    "sub": "NLP fusion led the other Transformer variants across all three seeds.",
+    "kind": "table",
+    "rows": [
+      [
+        "Model",
+        "Seed 42",
+        "Seed 142",
+        "Seed 242"
+      ],
+      [
+        "Count Transformer",
+        "2.831",
+        "2.664",
+        "2.682"
+      ],
+      [
+        "Static fusion",
+        "2.787",
+        "2.840",
+        "2.743"
+      ],
+      [
+        "NLP fusion",
+        "2.918",
+        "2.945",
+        "3.050"
+      ]
+    ],
+    "widths": [
+      440,
+      240,
+      240,
+      245
+    ],
+    "takeaway": "Selected-model train-to-validation lift gaps are 7â€“11%. Early stopping helps, but independent confirmation is still needed.",
+    "note": "NLP versus static LightGBM: paired lift interval [+0.009, +0.802]. Validation influenced model selection."
+  },
+  {
+    "title": "The local pretraining pilot did not add value",
+    "sub": "The matched scratch model outperformed local masked-code pretraining.",
+    "kind": "chart",
+    "categories": [
+      "Local masked pretraining",
+      "Matched scratch",
+      "Existing NLP fusion"
+    ],
+    "values": [
+      1.367202,
+      1.735294,
+      2.953506
+    ],
+    "max": 3.4,
+    "metric": "Validation Lift@10%",
+    "takeaway": "Both token models improved through epoch 3. This short run does not establish the value of longer pretraining.",
+    "note": "Token arms used the same bounded TRAIN subset. Existing NLP fusion used full TRAIN. Original pretrained Med-BERT weights were not used."
+  },
+  {
+    "title": "Pretrained biomedical text integration is ready to test",
+    "sub": "The new implementation downloads pretrained Microsoft BiomedBERT and reuses the existing tensors.",
+    "kind": "columns",
+    "items": [
+      [
+        "Implemented and checked",
+        "Checkpoint download, weight checksums and local embedding inference passed. The biomedical text encoder stays frozen."
+      ],
+      [
+        "What the benchmark tests",
+        "Count-only versus count plus random embeddings versus count plus pretrained medical-description embeddings."
+      ],
+      [
+        "What remains to establish",
+        "Incremental predictive value on the full validation population. No new clinical lift or production improvement is claimed."
+      ]
+    ],
+    "note": "BiomedBERT is a biomedical text model, distinct from the original structured Med-BERT. Original Med-BERT weights are not publicly released."
+  },
+  {
+    "title": "The next challenger builds on demonstrated signals",
+    "sub": "Keep business rules fixed and prioritise improvements with a clear experimental rationale.",
+    "kind": "table",
+    "rows": [
+      [
+        "Priority",
+        "Next action",
+        "Reason"
+      ],
+      [
+        "1",
+        "Tune static and time-aware LightGBM under one protocol",
+        "Timing already improved a matched control."
+      ],
+      [
+        "2",
+        "Tune NLP fusion with training-only selection",
+        "It is the strongest current top-10% development model."
+      ],
+      [
+        "3",
+        "Learn a blend from out-of-fold TRAIN predictions",
+        "Test complementary captures without fitting weights on validation."
+      ],
+      [
+        "4",
+        "Report patient captures, uncertainty and runtime",
+        "Translate model ranking into targeting value."
+      ]
+    ],
+    "widths": [
+      135,
+      550,
+      480
+    ],
+    "takeaway": "Deliverable: a reproducible development challenger. Production verification is deferred for stakeholder alignment.",
+    "note": "Overnight, resumable execution. No model improvement is guaranteed and production remains unchanged."
+  },
+  {
+    "title": "Appendix: capacity changes the preferred model",
+    "sub": "The top-10% result should not be generalized to every targeting capacity.",
+    "kind": "table",
+    "rows": [
+      [
+        "Model",
+        "Lift@10%",
+        "Lift@20%",
+        "Lift@30%"
+      ],
+      [
+        "Static LightGBM",
+        "2.533",
+        "2.130",
+        "1.899"
+      ],
+      [
+        "Count Transformer",
+        "2.734",
+        "2.095",
+        "1.826"
+      ],
+      [
+        "Static fusion",
+        "2.787",
+        "2.244",
+        "1.913"
+      ],
+      [
+        "NLP fusion",
+        "2.954",
+        "2.230",
+        "1.899"
+      ]
+    ],
+    "widths": [
+      440,
+      240,
+      240,
+      245
+    ],
+    "takeaway": "NLP fusion leads at 10%; static fusion leads slightly at 20% and 30%.",
+    "note": "All model-minus-LightGBM intervals at 20% and 30% include zero. Unique positive patients need separate counting."
+  },
+  {
+    "title": "Appendix: questions for production verification",
+    "sub": "Agree the interpretation of the historical approximately 4.59 lift before designing a new comparison.",
+    "kind": "table",
+    "rows": [
+      [
+        "Question",
+        "Why it matters"
+      ],
+      [
+        "Which frozen model, population and evaluation period?",
+        "Identifies the number we need to reproduce."
+      ],
+      [
+        "Were these patients used for fitting or model selection?",
+        "Separates training performance from generalization."
+      ],
+      [
+        "Are the ranking units patients, snapshots or HCPs?",
+        "Defines equal targeting capacity and useful captures."
+      ],
+      [
+        "What target, eligibility, cutoff and outcome-follow-up rules applied?",
+        "Ensures labels and inputs are comparable."
+      ],
+      [
+        "Can frozen scores and training provenance be read, and a later-period test agreed?",
+        "Enables a controlled future comparison without changing production."
+      ]
+    ],
+    "widths": [
+      690,
+      475
+    ],
+    "note": "Discussion only. Production testing is outside the current development run."
+  }
+]
