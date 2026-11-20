@@ -1,0 +1,14 @@
+{
+  "date": "2026-11-20",
+  "tests_run": 4,
+  "status": "PASS",
+  "torch": "2.15.0+cpu",
+  "transformers": "4.57.6",
+  "real_checkpoint_smoke": "Downloaded pinned checkpoint, verified weights/config/vocab SHA256; CPU encoding two public descriptions produced shape (2,768), no missing or mismatched parameters",
+  "clinical_execution": false,
+  "hashes": {
+    "experiments/medbert/pretrained_transfer.py": "b674cf184d2694063c0eb6b4a826eb507c6e4eb3b795f4298f090d5cc5ce345c",
+    "notebooks/expanded cohort/10_pretrained_biomedbert_tensor_transfer.ipynb": "8c96fc12df098ef2b63c8b25da6aaab4dad607e1e517d8609cd47794261e5a94"
+  },
+  "review": "Claude reviewed implementation; fixed early benchmark checks, checksum-verified resume, TRAIN-vocabulary centering, read-only checkpoint handling; independent expected hashes already pinned"
+}
