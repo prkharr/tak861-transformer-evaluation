@@ -5,27 +5,7 @@
     "kind": "cover"
   },
   {
-    "title": "The goal is better patient identification",
-    "sub": "Find more patients likely to initiate advanced therapy at the same targeting capacity.",
-    "kind": "columns",
-    "items": [
-      [
-        "Starting point",
-        "The 49-feature LightGBM supports HCP targeting. Reported historical lift: 4.59. Its population and evaluation differ; this is not a matched development comparison."
-      ],
-      [
-        "What we are adding",
-        "Monthly medical histories, richer feature representations and controlled model comparisons. Business rules stay unchanged."
-      ],
-      [
-        "How value is measured",
-        "More positive patients captured for the same outreach capacity. Current experiments measure patient-date snapshots; unique-patient reporting is the next bridge to targeting."
-      ]
-    ],
-    "note": "Historical production lift belongs to its original evaluation. A matched production comparison is deferred."
-  },
-  {
-    "title": "The PoC has advanced across four workstreams",
+    "title": "The PoC has advanced across three workstreams",
     "sub": "Progress includes stronger inputs and evaluation discipline as well as model development.",
     "kind": "table",
     "rows": [
@@ -48,11 +28,6 @@
         "Model development",
         "Static, NLP and timing augmentation",
         "NLP leads at 10%; timing helped a fixed-budget matched control."
-      ],
-      [
-        "Pretrained models",
-        "Local masked pretraining, then genuine biomedical text embeddings",
-        "The local pilot underperformed; pretrained text integration is ready for evaluation."
       ]
     ],
     "widths": [
@@ -197,15 +172,15 @@
     "note": "Historical results use different populations and metrics. They do not form a single comparable leaderboard."
   },
   {
-    "title": "Model stability is encouraging, but confirmation remains",
-    "sub": "NLP fusion led the other Transformer variants across all three seeds.",
+    "title": "Repeated runs show a consistent lead for NLP fusion",
+    "sub": "Each model was trained three times with different random starting points.",
     "kind": "table",
     "rows": [
       [
         "Model",
-        "Seed 42",
-        "Seed 142",
-        "Seed 242"
+        "Run 1 (seed 42)",
+        "Run 2 (seed 142)",
+        "Run 3 (seed 242)"
       ],
       [
         "Count Transformer",
@@ -232,45 +207,8 @@
       240,
       245
     ],
-    "takeaway": "Selected-model train-to-validation lift gaps are 7â€“11%. Early stopping helps, but independent confirmation is still needed.",
-    "note": "NLP versus static LightGBM: paired lift interval [+0.009, +0.802]. Validation influenced model selection."
-  },
-  {
-    "title": "The local pretraining pilot did not add value",
-    "sub": "The matched scratch model outperformed local masked-code pretraining.",
-    "kind": "chart",
-    "categories": [
-      "Local masked pretraining",
-      "Matched scratch"
-    ],
-    "values": [
-      1.367202,
-      1.735294
-    ],
-    "max": 2.1,
-    "metric": "Validation Lift@10%",
-    "takeaway": "156 versus 198 positive snapshots captured. Both models were still improving at epoch 3; longer training remains untested.",
-    "note": "Reported development run, same bounded TRAIN subset. Original pretrained Med-BERT weights were not used."
-  },
-  {
-    "title": "Pretrained biomedical text integration is ready to test",
-    "sub": "The new implementation downloads pretrained Microsoft BiomedBERT and reuses the existing tensors.",
-    "kind": "columns",
-    "items": [
-      [
-        "Implemented and checked",
-        "Checkpoint download, weight checksums and local embedding inference passed. The biomedical text encoder stays frozen."
-      ],
-      [
-        "What the benchmark tests",
-        "Count-only versus count plus random embeddings versus count plus pretrained medical-description embeddings."
-      ],
-      [
-        "What remains to establish",
-        "Incremental predictive value on the full validation population. No new clinical lift or production improvement is claimed."
-      ]
-    ],
-    "note": "BiomedBERT is a biomedical text model, distinct from the original structured Med-BERT. Original Med-BERT weights are not publicly released."
+    "takeaway": "Selected-model lift drops by 7 to 11% from training to validation. Repeated-run consistency does not prove performance on new populations.",
+    "note": "Values are validation Lift@10%. Gaps use training lift as the denominator. Validation was used to select checkpoints."
   },
   {
     "title": "The next challenger builds on demonstrated signals",
