@@ -1,0 +1,31 @@
+{
+  "notebooks": [
+    {
+      "notebook": "11_challenger_evidence_and_input_audit.ipynb",
+      "code_cells": 5,
+      "sf_values_blank": true,
+      "syntax": "pass",
+      "embedded_hash": "pass",
+      "sha256": "1382f87985b182807bc72e1f9922533005c2e3b5d8e8d6dce053dcae7ee33af7"
+    },
+    {
+      "notebook": "12_challenger_tuning_and_blend.ipynb",
+      "code_cells": 4,
+      "sf_values_blank": true,
+      "syntax": "pass",
+      "embedded_hash": "pass",
+      "sha256": "e0dfb22f149455d2db2bc186022ff5a4d185c201d74032b80636bb23b00b6194"
+    },
+    {
+      "notebook": "13_challenger_validation_report.ipynb",
+      "code_cells": 4,
+      "sf_values_blank": true,
+      "syntax": "pass",
+      "embedded_hash": "pass",
+      "sha256": "ad1d02cf19d5583dc3132266408b79ac0d0fd6f341c115c0621da70fc6bc66db"
+    }
+  ],
+  "local_tests": "3 tests passed; real synthetic LightGBM/PyTorch end-to-end run and resume",
+  "private_databricks_run": "not executed",
+  "clinical_uplift": "not established"
+}

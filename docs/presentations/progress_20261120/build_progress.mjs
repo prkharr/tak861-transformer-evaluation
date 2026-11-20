@@ -5,8 +5,9 @@ import {Presentation,PresentationFile} from '@oai/artifact-tool';
 
 // Run a copy in a private build folder whose node_modules points to the bundled runtime.
 const workspace=path.dirname(fileURLToPath(import.meta.url));
-const skill=process.env.PRESENTATIONS_SKILL_DIR || 'C:/Users/prakhar/.codex/plugins/cache/openai-primary-runtime/presentations/26.1116.12020/skills/presentations';
-const python=process.env.RUNTIME_PYTHON || 'C:/Program Files/WindowsApps/OpenAI.CodexPrimaryRuntime.v26-1116-1220-0_26.1116.1220.0_x64__3k8sg7r9htsxt/dependencies/python/python.exe';
+process.env.RUNTIME_NODE_MODULES ??= path.join(workspace,'node_modules');
+const skill=process.env.PRESENTATIONS_SKILL_DIR || 'C:/Users/prakhar/.codex/plugins/cache/openai-primary-runtime/presentations/26.1116.12010/skills/presentations';
+const python=process.env.RUNTIME_PYTHON || 'C:/Program Files/WindowsApps/OpenAI.CodexPrimaryRuntime.v26-1116-1210-0_26.1116.1210.0_x64__3k8sg7r9htsxt/dependencies/python/python.exe';
 const {finalizePresentation,applyPresentationChartFont,resolvePresentationFont}=await import(pathToFileURL(path.join(skill,'container_tools/artifact_tool_utils.mjs')));
 const font=resolvePresentationFont({fontFamily:'Arial'});
 const specs=JSON.parse(await fs.readFile(path.join(workspace,'slides.json'),'utf8'));
@@ -85,4 +86,3 @@ await finalizePresentation({workspaceDir:workspace,candidatePath:candidate,final
  materializeLiteralChartWorkbooks:true,fontPolicy:{basis:'design',families:[font]},verifyArtifactToolImport:true,
  receiptPath:path.join(workspace,'.codex-finalizer',path.basename(final)+'.validation.json')});
 console.log(JSON.stringify({final,slides:p.slides.items.length,chartSlides,tableSlides}));
-
