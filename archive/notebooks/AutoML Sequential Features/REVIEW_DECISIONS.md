@@ -3,10 +3,10 @@
 Run **R20261016A** using the five notebooks in this folder. Brian's
 TAK861_TX_READY_PATIENT_UNIVERSE_DL is resolved by exact metadata lookup;
 counts are rebuilt for its keys and actual historical AutoML features are
-assembled at 12 aligned dates. Read the [current guide](../../experiments/automl_sequence/README.md)
-and [client source contract](../../experiments/automl_sequence/CLIENT_UNIVERSE_20261016.md).
-See [validation](../../experiments/automl_sequence/local_validation.json) and
-[review](../../experiments/automl_sequence/CLAUDE_REVIEW_20261016.md).
+assembled at 12 aligned dates. Read the [current guide](../../../experiments/automl_sequence/README.md)
+and [client source contract](../../../experiments/automl_sequence/CLIENT_UNIVERSE_20261016.md).
+See [validation](../../../experiments/automl_sequence/local_validation.json) and
+[review](../../../experiments/automl_sequence/CLAUDE_REVIEW_20261016.md).
 Actual private-data execution and results are pending. TEST remains off.
 
 Everything below is historical documentation, superseded for the current notebook bytes.
@@ -17,7 +17,7 @@ Everything below is historical documentation, superseded for the current noteboo
 
 R20261013C includes the raw historical AutoML extractor and all five notebooks. All 58 local checks passed in 46.334 seconds, including synthetic execution of all five notebook cell sequences. Generated SQL passed a Snowflake syntax parse. These checks do not establish live source permissions, warehouse execution or clinical results. The user authorized the Git push and explicitly deferred Claude review; no fresh Claude approval is claimed.
 
-Run 01–05 in order using the existing private Spark/Snowflake connection. COUNT, STATIC_FUSION and TEMPORAL_FUSION use a common cohort and lift-based comparison. [Run guide](../../experiments/automl_sequence/README.md), [exact build](../../experiments/automl_sequence/build_manifest.json), [validation receipt](../../experiments/automl_sequence/local_validation.json), and [historical addendum findings](../../experiments/automl_sequence/HISTORICAL_ADDENDUM_FINDINGS.md). No new clinical performance result is available.
+Run 01–05 in order using the existing private Spark/Snowflake connection. COUNT, STATIC_FUSION and TEMPORAL_FUSION use a common cohort and lift-based comparison. [Run guide](../../../experiments/automl_sequence/README.md), [exact build](../../../experiments/automl_sequence/build_manifest.json), [validation receipt](../../../experiments/automl_sequence/local_validation.json), and [historical addendum findings](../../../experiments/automl_sequence/HISTORICAL_ADDENDUM_FINDINGS.md). No new clinical performance result is available.
 
 The record below applies to the October 6 implementation; its instructions, results and review do not apply to the current notebook bytes.
 
@@ -65,7 +65,7 @@ A counts-plus-static-AGE hybrid, new tuning of the archived 49-feature Transform
 
 ## Pre-push reliance and actual-code review
 
-After the user's additional pre-push request, native access to Claude was restored. Claude independently read the actual helper sources and five notebooks and saved [the actual-code review](../../experiments/rigorous_transformer/reviews/CLAUDE_RELIANCE_REVIEW_20261006.md). Its SHA256 is `b3693eeab6ffbd2debd0d0bf98ca269cd2f547796f958533d4383e0863cb185f`. It confirmed the feature-index/name/input/projection mapping and found no new leakage in the reviewed model-selection/TEST control paths; unresolved upstream lineage remains outside that finding. This review inspected the predecessor implementation `a6a5caff...`, before the corrections below. The [original design review](../../experiments/rigorous_transformer/reviews/CLAUDE_DESIGN_REVIEW_20261006.md) is also preserved verbatim.
+After the user's additional pre-push request, native access to Claude was restored. Claude independently read the actual helper sources and five notebooks and saved [the actual-code review](../../../experiments/rigorous_transformer/reviews/CLAUDE_RELIANCE_REVIEW_20261006.md). Its SHA256 is `b3693eeab6ffbd2debd0d0bf98ca269cd2f547796f958533d4383e0863cb185f`. It confirmed the feature-index/name/input/projection mapping and found no new leakage in the reviewed model-selection/TEST control paths; unresolved upstream lineage remains outside that finding. This review inspected the predecessor implementation `a6a5caff...`, before the corrections below. The [original design review](../../../experiments/rigorous_transformer/reviews/CLAUDE_DESIGN_REVIEW_20261006.md) is also preserved verbatim.
 
 Two substantive recommendations were accepted before publication:
 

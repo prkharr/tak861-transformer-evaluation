@@ -9,7 +9,7 @@ from pathlib import Path
 from experiments.automl_sequence import build_notebooks as base
 
 HERE = Path(__file__).resolve().parent
-DEST = base.REPO / "notebooks" / "Fresh Cohort AutoML NLP"
+DEST = base.REPO / 'archive' / 'notebooks' / 'Fresh Cohort AutoML NLP'
 
 
 def cleaned(text):

@@ -24,7 +24,7 @@ import torch
 HERE = Path(__file__).resolve().parent
 # Tests are distributed both beside the output builder and in the repository.
 DELIVERY = (HERE.parent / "Brian_Experiments" if HERE.name == "dl_poc_experiment_work"
-            else HERE.parents[1] / "notebooks" / "Brian Experiments")
+            else HERE.parents[1] / 'archive' / 'notebooks' / 'Brian Experiments')
 PREFIX = "TAK861_TX_READY_V63_DL_POC"
 EXP_PREFIX = PREFIX + "_BRIAN_V2"
 SOURCES = {stage: json.loads((DELIVERY / filename).read_text(encoding="utf-8"))["cells"]

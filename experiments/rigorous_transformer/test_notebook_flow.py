@@ -88,7 +88,7 @@ class NotebookFlow(unittest.TestCase):
         builder.REPO = directory
         builder.DEST = directory / "notebooks" / "delivery"
         builder.DEST.mkdir(parents=True)
-        (directory / "notebooks" / "Historical 49 Snapshot Padding (20260927)").mkdir()
+        (directory / 'archive' / 'notebooks' / 'Historical 49 Snapshot Padding (20260927)').mkdir(parents=True)
         warehouse = directory / "experiments" / "temporal_selection" / "input_helpers.py"
         warehouse.parent.mkdir(parents=True)
         shutil.copyfile(REPO / "experiments" / "temporal_selection" / "input_helpers.py", warehouse)

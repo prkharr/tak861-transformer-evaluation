@@ -4,7 +4,7 @@ Status: development pipeline with runtime cohort audit binding. No clinical exec
 
 ## Five stages
 
-The standalone, code-only notebooks are in `notebooks/Fresh Cohort AutoML NLP/`. All dependencies on repository source are embedded. The first cell of every notebook has seven empty Snowflake connection options. Use identical configuration in all five notebooks.
+The standalone, code-only notebooks are in `archive/notebooks/Fresh Cohort AutoML NLP/`. All dependencies on repository source are embedded. The first cell of every notebook has seven empty Snowflake connection options. Use identical configuration in all five notebooks.
 
 1. `01_tensor_initialization_AutoML`: audit the supplied expanded table, bound it to 48 snapshot months, reconstruct and audit forward outcomes, freeze POPULATION/COHORT_AUDIT, assign patient partitions using the existing rule, extract and persist monthly medical-description TF-IDF and its TRAIN salience ranking, build fresh count inputs, extract raw AutoML features, and persist INPUTS.
 2. `02_patient_level_split_AutoML`: fit the existing fold-local TRAIN-only feature preparation and one-SE selection; persist PREPARATION and the registered protocol.

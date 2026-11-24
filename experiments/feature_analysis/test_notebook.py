@@ -21,7 +21,7 @@ import pandas as pd
 
 
 ROOT = Path(__file__).resolve().parents[2]
-NOTEBOOK = ROOT / 'notebooks' / 'feature analysis' / '01_gather_and_select_features.ipynb'
+NOTEBOOK = ROOT / 'notebooks' / 'utilities' / '01_gather_and_select_features.ipynb'
 
 
 def test_notebook_structure_and_embedded_sources():

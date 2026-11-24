@@ -1,5 +1,5 @@
 experiments/cached_pilot/** text eol=lf
 experiments/challenger/time_lgbm.py text eol=lf
-"notebooks/expanded cohort/07_cached_feature_comparison_AutoML.ipynb" text eol=lf
-"notebooks/expanded cohort/08_experiment_tracker_AutoML.ipynb" text eol=lf
-"notebooks/expanded cohort/TAK861_roadmap_11-30_Nov_2026.pptx" binary
+"archive/notebooks/expanded cohort/07_cached_feature_comparison_AutoML.ipynb" text eol=lf
+notebooks/utilities/02_experiment_tracker.ipynb text eol=lf
+"archive/presentations/TAK861_roadmap_11-30_Nov_2026.pptx" binary

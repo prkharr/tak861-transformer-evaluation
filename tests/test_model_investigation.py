@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-BOOK = Path(__file__).resolve().parents[1]/'notebooks/Temporal Feature Selection/04_transformer_evaluation.ipynb'
+BOOK = Path(__file__).resolve().parents[1]/'archive/notebooks/Temporal Feature Selection/04_transformer_evaluation.ipynb'
 
 
 def load_scope():

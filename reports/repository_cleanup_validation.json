@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-24",
+  "status": "passed",
+  "layout": {
+    "active_notebooks": 11,
+    "preserved_notebooks_and_decks": 54,
+    "code_cells_compiled": 62,
+    "navigation_links_checked": 31,
+    "embedded_challenger_checksums": "pass",
+    "blank_connections": "pass",
+    "notebook_bytes": "unchanged",
+    "private_data_execution": false
+  },
+  "synthetic_tests": {
+    "challenger_pipeline": {
+      "passed": 3,
+      "covers": "TRAIN folds, fitting, save/resume, corruption rejection and reporting"
+    },
+    "archived_release_and_collector": {
+      "passed": 13
+    },
+    "feature_analysis_notebook": {
+      "passed": 2
+    }
+  },
+  "builder_check": "Three challenger notebooks built in temporary directory; all cell sources equal delivered notebooks",
+  "python_syntax": "all experiment, test and script Python files parse",
+  "links": "Maintained entry points and existing Markdown local links resolve",
+  "private_data_execution": false,
+  "model_behaviour_changes": false,
+  "historical_release_registries": "unchanged; paths address original Git commits"
+}

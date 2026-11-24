@@ -4,7 +4,7 @@ from pathlib import Path
 from textwrap import dedent
 
 ROOT = Path(__file__).resolve().parents[2]
-DEST = ROOT / 'notebooks' / 'Medical NLP Demo' / '01_medical_claims_NLP_sequence_demo.ipynb'
+DEST = ROOT / 'archive' / 'notebooks' / 'Medical NLP Demo' / '01_medical_claims_NLP_sequence_demo.ipynb'
 
 CONFIG = '''
 import time, os, json, hashlib, platform, importlib.metadata

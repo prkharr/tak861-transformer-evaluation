@@ -10,7 +10,7 @@ import unittest
 
 import pandas as pd
 
-NOTEBOOK = Path(__file__).resolve().parents[1] / "notebooks/Project Evidence/00_collect_missing_inputs.ipynb"
+NOTEBOOK = Path(__file__).resolve().parents[1] / "archive/notebooks/Project Evidence/00_collect_missing_inputs.ipynb"
 
 
 def load_namespace():

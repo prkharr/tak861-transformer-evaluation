@@ -8,7 +8,7 @@ from textwrap import dedent
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
-DEST = REPO / "notebooks" / "V63 Snapshot Padding"
+DEST = REPO / 'archive' / 'notebooks' / 'V63 Snapshot Padding'
 
 
 def md(text):
@@ -676,7 +676,7 @@ print("Implementation:", IMPLEMENTATION_SHA256)
         ''')]
     names=["01_tensor_initialization.ipynb","02_patient_level_split.ipynb","03_transformer_training.ipynb",
            "04_transformer_evaluation.ipynb","05_model_comparison.ipynb"]
-    archive=REPO/"notebooks"/"Historical 49 Snapshot Padding (20260927)"
+    archive=REPO/'archive' / 'notebooks' / 'Historical 49 Snapshot Padding (20260927)'
     if not archive.exists():
         shutil.copytree(DEST,archive)
     for name,cells in zip(names,(n1,n2,n3,n4,n5)):

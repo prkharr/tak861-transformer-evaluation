@@ -1,7 +1,7 @@
 # AutoML sequence experiments — bounded memory
 
 Current run: **R20261023_OLD_B**. The five self-contained notebooks in
-`notebooks/AutoML Sequential Features` default to the original V63 cohort,
+`archive/notebooks/AutoML Sequential Features` default to the original V63 cohort,
 as requested for the first sequential AutoML run. Its population source is
 `DSVC_TAKEDA_TA_PRIVATE.DS_ML.TAK861_TX_READY_V63_MODEL_DATA`, projected to
 `PATIENT_ID, END_DT, RESP` only. No previously fitted feature values are read.

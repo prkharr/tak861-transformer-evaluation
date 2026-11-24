@@ -1,6 +1,6 @@
 # Transformer evaluation specification
 
-The shared ranking definitions below apply to both the checkpoint-based `03_transformer_evaluation.ipynb` and the root predictions-only `06_transformer_evaluation.ipynb`. Notebook 03 additionally reports threshold classification metrics and a confusion matrix using the threshold frozen on VALIDATION during notebook 02, plus a response-rate-by-decile chart.
+The shared ranking definitions below apply to both the checkpoint-based `03_transformer_evaluation.ipynb` and the root predictions-only `archive/notebooks/predictions_only/06_transformer_evaluation.ipynb`. Notebook 03 additionally reports threshold classification metrics and a confusion matrix using the threshold frozen on VALIDATION during notebook 02, plus a response-rate-by-decile chart.
 
 ## Scope and unit
 

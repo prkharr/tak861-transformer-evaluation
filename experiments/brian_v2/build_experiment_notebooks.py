@@ -12,7 +12,7 @@ if HERE.name == "dl_poc_experiment_work":
     OUT = HERE.parent / "Brian_Experiments"
 else:
     REPO = HERE.parent.parent
-    OUT = REPO / "notebooks" / "Brian Experiments"
+    OUT = REPO / 'archive' / 'notebooks' / 'Brian Experiments'
 
 
 def read(path):

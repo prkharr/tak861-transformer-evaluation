@@ -96,7 +96,7 @@ class FreshBaselineTests(unittest.TestCase):
             self.fit()
 
     def test_actual_notebook_extension_executes(self):
-        path = Path(__file__).resolve().parents[2] / "notebooks/AutoML Sequential Features/05_model_comparison_AutoML.ipynb"
+        path = Path(__file__).resolve().parents[2] / "archive/notebooks/AutoML Sequential Features/05_model_comparison_AutoML.ipynb"
         book = json.loads(path.read_text(encoding="utf-8"))
         extension = ["".join(cell["source"]) for cell in book["cells"] if "FRESH_LGBM_EXTENSION" in "".join(cell["source"])]
         self.assertEqual(len(extension), 4)

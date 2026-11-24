@@ -9,7 +9,7 @@ from experiments.automl_sequence.build_notebooks import code, notebook_source
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
-DEST = ROOT / 'notebooks/expanded cohort'
+DEST = ROOT / 'archive/notebooks/expanded cohort'
 
 
 def selected(path, names, imports=''):

@@ -1,6 +1,6 @@
 # SME review — reliance-vs-ranking consistency and final pre-push checks (2026-10-06)
 
-Reviewer: Claude (independent SME). Read-only inspection of the actual files: `experiments/rigorous_transformer/{features,training,workflow,comparison,lineage,build_notebooks}.py` (plus `baseline49.py` signatures), `API_CONTRACT.md`, `REVIEW_DECISIONS.md`, and the five generated notebooks under `notebooks/V63 Snapshot Padding/`. The implementation hash `a6a5caff3fb78f41cd4a2eef865143ee89be45e6a62cffbe99604e0573517fe6` reproduces from the on-disk module sources plus `build_notebooks.py`, and every notebook's metadata carries it. No code was edited; no model reliance values exist yet and none are asserted here.
+Reviewer: Claude (independent SME). Read-only inspection of the actual files: `experiments/rigorous_transformer/{features,training,workflow,comparison,lineage,build_notebooks}.py` (plus `baseline49.py` signatures), `API_CONTRACT.md`, `REVIEW_DECISIONS.md`, and the five generated notebooks under `archive/notebooks/V63 Snapshot Padding/`. The implementation hash `a6a5caff3fb78f41cd4a2eef865143ee89be45e6a62cffbe99604e0573517fe6` reproduces from the on-disk module sources plus `build_notebooks.py`, and every notebook's metadata carries it. No code was edited; no model reliance values exist yet and none are asserted here.
 
 ## 1. Feature mapping — verified correct
 

@@ -10,7 +10,7 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 WORKSPACE = REPO.parent
 OUT = WORKSPACE / "outputs" / "Manual_Features"
-MIRROR = REPO / "notebooks" / "Manual Features"
+MIRROR = REPO / 'archive' / 'notebooks' / 'Manual Features'
 
 
 def read(path):

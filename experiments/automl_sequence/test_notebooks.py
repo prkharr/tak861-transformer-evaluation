@@ -27,7 +27,7 @@ from experiments.automl_sequence import release_registry
 from experiments.automl_sequence.test_count_loader import Expression, Frame
 
 
-BOOKS = Path(__file__).resolve().parents[2] / "notebooks" / "AutoML Sequential Features"
+BOOKS = Path(__file__).resolve().parents[2] / 'archive' / 'notebooks' / 'AutoML Sequential Features'
 FILENAMES = ["01_tensor_initialization_AutoML.ipynb", "02_patient_level_split_AutoML.ipynb",
              "03_transformer_training_AutoML.ipynb", "04_transformer_evaluation_AutoML.ipynb",
              "05_model_comparison_AutoML.ipynb"]
@@ -122,7 +122,7 @@ class NotebookDeliveryTests(unittest.TestCase):
         release = release_registry.RELEASES[release_registry.CURRENT_RELEASE]
         pinned_sources, _ = release_registry.verify_release_identity(release)
         published_originals = release_registry.published_sources(release)
-        manifest = json.loads((BOOKS.parent.parent / release["manifest"]).read_text(encoding="utf-8-sig"))
+        manifest = json.loads((Path(__file__).resolve().parents[2] / release["manifest"]).read_text(encoding="utf-8-sig"))
         self.assertEqual(manifest["implementation_sha256"], release["implementation_sha256"])
         self.assertEqual(manifest["source_sha256"], release["source_sha256"])
         self.assertEqual({Path(item["path"].replace("\\", "/")).name: item["sha256"] for item in manifest["notebooks"]},

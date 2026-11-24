@@ -19,7 +19,7 @@ for name in names:
     for cell in nb.cells:
         assert cell.cell_type == 'code' and cell.execution_count is None and not cell.outputs
         compile(cell.source, name, 'exec')
-    assert path.read_bytes() == (ROOT / 'notebooks' / 'Temporal Feature Selection' / name).read_bytes()
+    assert path.read_bytes() == (ROOT / 'archive' / 'notebooks' / 'Temporal Feature Selection' / name).read_bytes()
 with zipfile.ZipFile(OUT.parent / 'Temporal_Feature_Selection_4_Notebooks.zip') as archive:
     assert archive.testzip() is None
     assert set(archive.namelist()) == set(names + ['START_HERE.md', 'VALIDATION.md'])

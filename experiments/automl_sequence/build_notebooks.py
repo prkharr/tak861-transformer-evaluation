@@ -9,7 +9,7 @@ from textwrap import dedent
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
-DEST = REPO / "notebooks" / "AutoML Sequential Features"
+DEST = REPO / 'archive' / 'notebooks' / 'AutoML Sequential Features'
 
 
 def notebook_source(text):

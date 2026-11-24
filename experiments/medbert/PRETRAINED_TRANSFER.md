@@ -1,6 +1,6 @@
 # Real pretrained biomedical text transfer
 
-Run `notebooks/expanded cohort/10_pretrained_biomedbert_tensor_transfer.ipynb`.
+Run `archive/notebooks/expanded cohort/10_pretrained_biomedbert_tensor_transfer.ipynb`.
 This is **BiomedBERT, not the original structured Med-BERT**. The original authors
 state that their weights cannot be shared: https://github.com/ZhiGroup/Med-BERT#sharing-pre-trained-model.
 The downloadable Microsoft model is pretrained on biomedical text:

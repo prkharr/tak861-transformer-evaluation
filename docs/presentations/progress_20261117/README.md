@@ -10,7 +10,7 @@ The Med-BERT slide describes a bounded monthly code-token adaptation, not use of
 
 Use the bundled Node.js runtime and `@oai/artifact-tool`. Copy `build_progress.mjs` and `evidence.json` into a private build directory, and link that directory's `node_modules` to the bundled packages. Set `RUNTIME_NODE_MODULES`, `RUNTIME_PYTHON`, and `PRESENTATIONS_SKILL_DIR` to the installed runtime and presentation skill paths, then run the builder with the bundled Node.js executable. Set `DECK_FILENAME` to a new output filename for each revision. The builder writes previews, exports the draft, materializes workbook snapshots for the native charts, and runs the presentation finalizer.
 
-The reviewed output is copied unchanged into `notebooks/expanded cohort/TAK861_Progress_20261117.pptx`. Private render images and validation receipts remain in the workspace build directory.
+The reviewed output is copied unchanged into `archive/presentations/TAK861_Progress_20261117.pptx`. Private render images and validation receipts remain in the workspace build directory.
 
 ## Evidence scopes
 

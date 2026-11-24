@@ -7,13 +7,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
-OUTPUT = ROOT / "notebooks" / "expanded cohort" / "08_experiment_tracker_AutoML.ipynb"
+OUTPUT = ROOT / "notebooks" / "utilities" / "02_experiment_tracker.ipynb"
 
 
 def build():
     source = (HERE / "tracker.py").read_text(encoding="utf-8")
     seed_text = (HERE / "evidence_seed.json").read_text(encoding="utf-8")
-    existing = json.loads((ROOT / "notebooks" / "Project Evidence" / "00_collect_missing_inputs.ipynb").read_text(encoding="utf-8-sig"))
+    existing = json.loads((ROOT / 'archive' / 'notebooks' / 'Project Evidence' / "00_collect_missing_inputs.ipynb").read_text(encoding="utf-8-sig"))
     joined = "\n".join("".join(c["source"]) for c in existing["cells"] if c["cell_type"] == "code")
     node = next(n for n in ast.parse(joined).body if isinstance(n, ast.FunctionDef) and n.name == "decode_checked_artifact")
     decoder = ast.get_source_segment(joined, node)

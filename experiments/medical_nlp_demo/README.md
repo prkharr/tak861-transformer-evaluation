@@ -1,6 +1,6 @@
 # Medical claims NLP sequence demonstration
 
-Import `notebooks/Medical NLP Demo/01_medical_claims_NLP_sequence_demo.ipynb` into Databricks, fill the seven empty `sf_options` fields in cell 1, and run its seven cells in order. Requires Spark with the Snowflake connector, numpy, pandas, scipy, scikit-learn, joblib and matplotlib. No model download, internet access, GPU or additional repository files are required at runtime. This notebook is independent of the five AutoML notebooks and does not modify their artifacts.
+Import `archive/notebooks/Medical NLP Demo/01_medical_claims_NLP_sequence_demo.ipynb` into Databricks, fill the seven empty `sf_options` fields in cell 1, and run its seven cells in order. Requires Spark with the Snowflake connector, numpy, pandas, scipy, scikit-learn, joblib and matplotlib. No model download, internet access, GPU or additional repository files are required at runtime. This notebook is independent of the five AutoML notebooks and does not modify their artifacts.
 
 The default demonstration selects at most 100 patients by a deterministic label-independent hash and uses each patient's latest snapshot from the original V63 MODEL_DATA universe. One extraction query aggregates diagnosis and procedure code occurrences from MEDICAL_EVENTS_LATEST. A code occurrence is counted once per distinct MEDICAL_EVENT_ID per month and code. This is code-event activity, not unique overall claim utilization. Outcome labels are neither retrieved nor used.
 

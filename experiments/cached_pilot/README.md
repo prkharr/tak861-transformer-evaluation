@@ -4,8 +4,8 @@ The two notebooks work from verified completed extraction chunks. They do not re
 
 ## Files
 
-- `notebooks/expanded cohort/07_cached_feature_comparison_AutoML.ipynb`: AutoML versus AutoML plus nine timing features first; two NLP arms follow only when matching saved NLP artifacts pass verification.
-- `notebooks/expanded cohort/08_experiment_tracker_AutoML.ipynb`: aggregate evidence tables and charts; no training or raw-claim extraction.
+- `archive/notebooks/expanded cohort/07_cached_feature_comparison_AutoML.ipynb`: AutoML versus AutoML plus nine timing features first; two NLP arms follow only when matching saved NLP artifacts pass verification.
+- `notebooks/utilities/02_experiment_tracker.ipynb`: aggregate evidence tables and charts; no training or raw-claim extraction.
 - `experiments/cached_pilot/HANDOFF_CELL.py`: standalone code to paste into a new cell in notebook 01 after gracefully stopping its extraction cell.
 - `experiments/cached_pilot/GENIE_PROMPT.txt`: execution instructions.
 

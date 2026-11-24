@@ -28,6 +28,13 @@ data/
 artifacts/
 results/
 reports/
+!/reports/
+/reports/*
+!/reports/experiment_summary.md
+!/reports/repository_cleanup_validation.json
+!/reports/presentations/
+/reports/presentations/*
+!/reports/presentations/TAK861_Progress_20261124.pptx
 checkpoints/
 predictions/
 private/

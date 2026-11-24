@@ -9,11 +9,11 @@ from pathlib import Path
 from experiments.automl_sequence.build_notebooks import code, notebook_source
 
 ROOT = Path(__file__).resolve().parents[2]
-DEST = ROOT / 'notebooks/expanded cohort/09_medbert_monthly_benchmark.ipynb'
+DEST = ROOT / 'archive/notebooks/expanded cohort/09_medbert_monthly_benchmark.ipynb'
 
 
 def build(output_path=DEST):
-    parent = json.loads((ROOT / 'notebooks/expanded cohort/02_patient_level_split_AutoML.ipynb').read_text(encoding='utf-8-sig'))
+    parent = json.loads((ROOT / 'notebooks/established_experiments/02_patient_level_split_AutoML.ipynb').read_text(encoding='utf-8-sig'))
     cells = copy.deepcopy(parent['cells'][:2])
     setup = '''import time, importlib.util
 BENCHMARK_STARTED = time.monotonic()

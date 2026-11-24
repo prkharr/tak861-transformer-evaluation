@@ -1,0 +1,492 @@
+{
+  "date": "2026-11-24",
+  "base_commit": "3591bb7d70ac097a59139869fe4f24fc073f70ff",
+  "moves": [
+    {
+      "old": "06_transformer_evaluation.ipynb",
+      "new": "archive/notebooks/predictions_only/06_transformer_evaluation.ipynb",
+      "sha256_before": "723dcf31eab43814e49aa9aa29f3d1cf619064af3e3eade110147d49404eb8c4",
+      "tracked_before": true,
+      "git_blob_sha256": "47d76f911c063bebda9bdbcf956996ca0864cbee790ea4f8d1c679b637ce4cae"
+    },
+    {
+      "old": "docs/presentations/deep_learning_capability/Deep_Learning_Capability_Overview.pptx",
+      "new": "archive/presentations/Deep_Learning_Capability_Overview.pptx",
+      "sha256_before": "daa7b625f7199c9900eda09be71883da8c3f1abff007416dc32333d6a1504938",
+      "tracked_before": true,
+      "git_blob_sha256": "daa7b625f7199c9900eda09be71883da8c3f1abff007416dc32333d6a1504938"
+    },
+    {
+      "old": "notebooks/AutoML Sequential Features/.gitattributes",
+      "new": "archive/notebooks/AutoML Sequential Features/.gitattributes",
+      "sha256_before": "28b7e19ec2e4c1b90a978b6707c2a38cf49dc0ac142dfb2c147b19eb31286d58",
+      "tracked_before": true
+    },
+    {
+      "old": "notebooks/AutoML Sequential Features/01_tensor_initialization_AutoML.ipynb",
+      "new": "archive/notebooks/AutoML Sequential Features/01_tensor_initialization_AutoML.ipynb",
+      "sha256_before": "13ddf053934e2158424a93efcc3abf78bcc224fdbfac5b40a52bef2dc68711ae",
+      "tracked_before": true,
+      "git_blob_sha256": "13ddf053934e2158424a93efcc3abf78bcc224fdbfac5b40a52bef2dc68711ae"
+    },
+    {
+      "old": "notebooks/AutoML Sequential Features/02_patient_level_split_AutoML.ipynb",
+      "new": "archive/notebooks/AutoML Sequential Features/02_patient_level_split_AutoML.ipynb",
+      "sha256_before": "5cd987c37ddcddf31337bbaf4132cbe9353469f8cb480b269cb4dec72af9b6d4",
+      "tracked_before": true,
+      "git_blob_sha256": "5cd987c37ddcddf31337bbaf4132cbe9353469f8cb480b269cb4dec72af9b6d4"
+    },
+    {
+      "old": "notebooks/AutoML Sequential Features/03_transformer_training_AutoML.ipynb",
+      "new": "archive/notebooks/AutoML Sequential Features/03_transformer_training_AutoML.ipynb",
+      "sha256_before": "d58364ffdb6eeb4d98a70956ea5e0fe137fbc4e1cf594956749dd7660013409f",
+      "tracked_before": true,
+      "git_blob_sha256": "d58364ffdb6eeb4d98a70956ea5e0fe137fbc4e1cf594956749dd7660013409f"
+    },
+    {
+      "old": "notebooks/AutoML Sequential Features/04_transformer_evaluation_AutoML.ipynb",
+      "new": "archive/notebooks/AutoML Sequential Features/04_transformer_evaluation_AutoML.ipynb",
+      "sha256_before": "e8bd00e626ba99bb5b7621c54e98ab4cb14eca69d98af6e40aff8ddbe4401f95",
+      "tracked_before": true,
+      "git_blob_sha256": "e8bd00e626ba99bb5b7621c54e98ab4cb14eca69d98af6e40aff8ddbe4401f95"
+    },
+    {
+      "old": "notebooks/AutoML Sequential Features/05_model_comparison_AutoML.ipynb",
+      "new": "archive/notebooks/AutoML Sequential Features/05_model_comparison_AutoML.ipynb",
+      "sha256_before": "f8fc264168bfc5cc2eed8417d0297e8bee8b6f003a72f43bd299a58f221d37ab",
+      "tracked_before": true,
+      "git_blob_sha256": "f8fc264168bfc5cc2eed8417d0297e8bee8b6f003a72f43bd299a58f221d37ab"
+    },
+    {
+      "old": "notebooks/AutoML Sequential Features/REVIEW_DECISIONS.md",
+      "new": "archive/notebooks/AutoML Sequential Features/REVIEW_DECISIONS.md",
+      "sha256_before": "4ddde07ebfc9a70bc220aa655741d651549de4b5b07c79d0f5fea4447aeee055",
+      "tracked_before": true
+    },
+    {
+      "old": "notebooks/AutoML Sequential Features/RUN_HANDOFF.md",
+      "new": "archive/notebooks/AutoML Sequential Features/RUN_HANDOFF.md",
+      "sha256_before": "c144be0e597cacf96aae9b85bca25151ef7f188ea0e7f06a39db3bce20ba5233",
+      "tracked_before": true
+    },
+    {
+      "old": "notebooks/AutoML Sequential Features/START_HERE.md",
+      "new": "archive/notebooks/AutoML Sequential Features/START_HERE.md",
+      "sha256_before": "9c3c244485fb64c903130904c9a4e4cc273b854d19be715ec1c4fbd882187706",
+      "tracked_before": true
+    },
+    {
+      "old": "notebooks/AutoML Sequential Features/VALIDATION.md",
+      "new": "archive/notebooks/AutoML Sequential Features/VALIDATION.md",
+      "sha256_before": "7efe3d80f7b3acd7f4630024edd8de2fcce067effd91e82155381b82180d363c",
+      "tracked_before": true
+    },
+    {
+      "old": "notebooks/AutoML Sequential Features/recover_clipped_evidence.py",
+      "new": "archive/notebooks/AutoML Sequential Features/recover_clipped_evidence.py",
+      "sha256_before": "1780f94ca44645c0e2161d4c5242e9e11397073555dc36b5b7810324c92c70f2",
+      "tracked_before": true
+    },
+    {
+      "old": "notebooks/AutoML Sequential Features/static_delivery_validation.json",
+      "new": "archive/notebooks/AutoML Sequential Features/static_delivery_validation.json",
+      "sha256_before": "66f0565a31776d9f9e3d63b6400144aa180ea7902396765828c6e49869a47864",
+      "tracked_before": true
+    },
+    {
+      "old": "notebooks/Brian Experiments/01_tensor_initialization_DL_POC.ipynb",
+      "new": "archive/notebooks/Brian Experiments/01_tensor_initialization_DL_POC.ipynb",
+      "sha256_before": "79966b1f6f0d01e81503aa4be0b3ec5dafa62929ae5897c54e4e8013c135a7e2",
+      "tracked_before": true,
+      "git_blob_sha256": "d0395c0a2f94cfd5209279fc5926d53f43b2f846791aa2e4a9e0ef7781bfecf3"
+    },
+    {
+      "old": "notebooks/Brian Experiments/02_patient_level_split_DL_POC.ipynb",
+      "new": "archive/notebooks/Brian Experiments/02_patient_level_split_DL_POC.ipynb",
+      "sha256_before": "b5827329930fd3dc280bd873d754625090afe3e5f89aa67e2dccee4672df8186",
+      "tracked_before": true,
+      "git_blob_sha256": "e0b3c1c85f7213e14bb61009391a600a4fdbe0ae1c6b9dee9d59ae2b14be6606"
+    },
+    {
+      "old": "notebooks/Brian Experiments/03_transformer_training_DL_POC.ipynb",
+      "new": "archive/notebooks/Brian Experiments/03_transformer_training_DL_POC.ipynb",
+      "sha256_before": "a12aef43f4dfd5665ac8fa99855d31940a8df74530281aaa600ee450cca9c499",
+      "tracked_before": true,
+      "git_blob_sha256": "32a28f6b643222d34c6f8c61827ce78b01c492c42c717e90e82f08bcc6311ee9"
+    },
+    {
+      "old": "notebooks/Brian Experiments/04_transformer_evaluation_DL_POC.ipynb",
+      "new": "archive/notebooks/Brian Experiments/04_transformer_evaluation_DL_POC.ipynb",
+      "sha256_before": "e37f166a604badf4e4807315e9773b519aa40d1714b78f31de98f53c92788259",
+      "tracked_before": true,
+      "git_blob_sha256": "f86cb91ed7dd84895fd296c4537a385491684b67428b9182a397ffe5f698e586"
+    },
+    {
+      "old": "notebooks/Brian Experiments/START_HERE.md",
+      "new": "archive/notebooks/Brian Experiments/START_HERE.md",
+      "sha256_before": "5eac8746872fd75fe85076c40ba39904fc4da07dd7b7e7d7d3877fd93f6b716f",
+      "tracked_before": true
+    },
+    {
+      "old": "notebooks/Brian Experiments/VALIDATION.md",
+      "new": "archive/notebooks/Brian Experiments/VALIDATION.md",
+      "sha256_before": "d4b156b7805c95a00e7825852a2420021df547afec9fb5f2645da68e7c6c4df3",
+      "tracked_before": true
+    },
+    {
+      "old": "notebooks/Fresh Cohort AutoML NLP/01_tensor_initialization_AutoML.ipynb",
+      "new": "archive/notebooks/Fresh Cohort AutoML NLP/01_tensor_initialization_AutoML.ipynb",
+      "sha256_before": "488a9b797222e0de018d84d8bc3978a767cf62a2394d157f0399dab0650732f9",
+      "tracked_before": true,
+      "git_blob_sha256": "a888b54be6f87841440beb7fc2fd69f75779b0ae2854db5273a315caac58d407"
+    },
+    {
+      "old": "notebooks/Fresh Cohort AutoML NLP/02_patient_level_split_AutoML.ipynb",
+      "new": "archive/notebooks/Fresh Cohort AutoML NLP/02_patient_level_split_AutoML.ipynb",
+      "sha256_before": "83827062f503b460d35f3128f144cb28cd5980efeb183abfa911c4f8369b2dcc",
+      "tracked_before": true,
+      "git_blob_sha256": "8cfc9de2f0a15bf03ca8871a9ddfc1dc7888c76346b91944373a7216c1415303"
+    },
+    {
+      "old": "notebooks/Fresh Cohort AutoML NLP/03_transformer_training_AutoML.ipynb",
+      "new": "archive/notebooks/Fresh Cohort AutoML NLP/03_transformer_training_AutoML.ipynb",
+      "sha256_before": "262d039e00bf079770ca24d36896bcca53d966c1f9f5a31e56e256e96f39b954",
+      "tracked_before": true,
+      "git_blob_sha256": "1b8d536e51c568defefdb280b08b4003a5059a182c92125de7a2f3678e774344"
+    },
+    {
+      "old": "notebooks/Fresh Cohort AutoML NLP/04_transformer_evaluation_AutoML.ipynb",
+      "new": "archive/notebooks/Fresh Cohort AutoML NLP/04_transformer_evaluation_AutoML.ipynb",
+      "sha256_before": "ab661b3c579665112043a71f20aa2eab058a4d3e05ecabd917e0f89c9a6ee2dc",
+      "tracked_before": true,
+      "git_blob_sha256": "ebab517835256e911f391f202d5e167cc14486014b4e3f7e8dd0afda927055b7"
+    },
+    {
+      "old": "notebooks/Fresh Cohort AutoML NLP/05_model_comparison_AutoML.ipynb",
+      "new": "archive/notebooks/Fresh Cohort AutoML NLP/05_model_comparison_AutoML.ipynb",
+      "sha256_before": "325dfa703c6e71e26b36cda8903808721c6d1e0276d092acbf08b9265db70531",
+      "tracked_before": true,
+      "git_blob_sha256": "f929952ceee1fa78decb88a8c78363630b9d95fbb0370c453306b6eefc781189"
+    },
+    {
+      "old": "notebooks/Historical 49 Snapshot Padding (20260927)/01_tensor_initialization.ipynb",
+      "new": "archive/notebooks/Historical 49 Snapshot Padding (20260927)/01_tensor_initialization.ipynb",
+      "sha256_before": "8904e4781a38e234783b998b32b8908b69d46fba8e043500fb101fd579f604f5",
+      "tracked_before": true,
+      "git_blob_sha256": "5f1245deff3e3492faffd30ccc689c42a1f43277dcd152ebd237cdbd438f0c0a"
+    },
+    {
+      "old": "notebooks/Historical 49 Snapshot Padding (20260927)/02_patient_level_split.ipynb",
+      "new": "archive/notebooks/Historical 49 Snapshot Padding (20260927)/02_patient_level_split.ipynb",
+      "sha256_before": "9512799b526df89803bba5876eab44dca0919cd9236a158cacd5242fb136afd8",
+      "tracked_before": true,
+      "git_blob_sha256": "380e9611dcb68723e22d895e9dde5daa0f7b13e161189c2f34600ab9b852131c"
+    },
+    {
+      "old": "notebooks/Historical 49 Snapshot Padding (20260927)/03_transformer_training.ipynb",
+      "new": "archive/notebooks/Historical 49 Snapshot Padding (20260927)/03_transformer_training.ipynb",
+      "sha256_before": "a20136af4b7d94c34ecd6c7a961cdf07a1cab814ed3a76df9d43c041a09cc647",
+      "tracked_before": true,
+      "git_blob_sha256": "72be4c334257ed966058c6b1c134c0ab9465caafc545db7a223ad89d8fa685a0"
+    },
+    {
+      "old": "notebooks/Historical 49 Snapshot Padding (20260927)/04_transformer_evaluation.ipynb",
+      "new": "archive/notebooks/Historical 49 Snapshot Padding (20260927)/04_transformer_evaluation.ipynb",
+      "sha256_before": "c5c2288e9143d4baaffe5bf2cb885c70d0225234fcc9348b2ccb764200f74b51",
+      "tracked_before": true,
+      "git_blob_sha256": "c02175c29455049427f17f99d18fdb23c15ef5a1a4fd31373b9ed80e0f1a84fd"
+    },
+    {
+      "old": "notebooks/Historical 49 Snapshot Padding (20260927)/START_HERE.md",
+      "new": "archive/notebooks/Historical 49 Snapshot Padding (20260927)/START_HERE.md",
+      "sha256_before": "7cc379840d172c0891a9331aed45fac53f968b5d4bb5dc229b368adeca154cdc",
+      "tracked_before": true
+    },
+    {
+      "old": "notebooks/Historical 49 Snapshot Padding (20260927)/VALIDATION.md",
+      "new": "archive/notebooks/Historical 49 Snapshot Padding (20260927)/VALIDATION.md",
+      "sha256_before": "fbeb49aa326757661cd3b77fa62cd8b6acd2307157aca50b0c877391526f090f",
+      "tracked_before": true
+    },
+    {
+      "old": "notebooks/Manual Features/01_tensor_initialization.ipynb",
+      "new": "archive/notebooks/Manual Features/01_tensor_initialization.ipynb",
+      "sha256_before": "2a56052f243f524b94a3cb9c7b802d4dbef93750a6598485ff7e9db7e566ba67",
+      "tracked_before": true,
+      "git_blob_sha256": "d03a7a4612c2d15906a981a47ac96e2e8b6f21d85226b0b1ed56b1d3468c33e6"
+    },
+    {
+      "old": "notebooks/Manual Features/02_patient_level_split.ipynb",
+      "new": "archive/notebooks/Manual Features/02_patient_level_split.ipynb",
+      "sha256_before": "89f68a568753a7ace08b5ef916d154fb8f96f3956c81d13d7efacea147db28cb",
+      "tracked_before": true,
+      "git_blob_sha256": "b39ceb8961acf0bfdb7470c873c40cfdbf0c8a545169dca7130384cdb500f9a1"
+    },
+    {
+      "old": "notebooks/Manual Features/03_transformer_training.ipynb",
+      "new": "archive/notebooks/Manual Features/03_transformer_training.ipynb",
+      "sha256_before": "fcd9eb630a59fcbd887f2d0dec251ce9652c73f9446f2e0a82db90bc53b9766f",
+      "tracked_before": true,
+      "git_blob_sha256": "fde247fb586a2a7140b484a57fdbda62d84f89b1ac33e1281aa5c2964736ccff"
+    },
+    {
+      "old": "notebooks/Manual Features/04_transformer_evaluation.ipynb",
+      "new": "archive/notebooks/Manual Features/04_transformer_evaluation.ipynb",
+      "sha256_before": "6c054f4d08276dda017edb281963acb78bd38378e12ec3de597469bdb93b1063",
+      "tracked_before": true,
+      "git_blob_sha256": "e6d0f611231f45020e2542cd590c4af74b5a872cd04b387bcab22148ab25ffea"
+    },
+    {
+      "old": "notebooks/Manual Features/START_HERE.md",
+      "new": "archive/notebooks/Manual Features/START_HERE.md",
+      "sha256_before": "eeb16e435dbf0f8b5ed1699c08b22c3e4a7ff540007e9cdff93a1d9d0d69f3be",
+      "tracked_before": true
+    },
+    {
+      "old": "notebooks/Manual Features/VALIDATION.md",
+      "new": "archive/notebooks/Manual Features/VALIDATION.md",
+      "sha256_before": "df4373511c99240c08ab14cfb524321c49b5739e4741bd17d9d837bdf47c139c",
+      "tracked_before": true
+    },
+    {
+      "old": "notebooks/Medical NLP Demo/.gitattributes",
+      "new": "archive/notebooks/Medical NLP Demo/.gitattributes",
+      "sha256_before": "28b7e19ec2e4c1b90a978b6707c2a38cf49dc0ac142dfb2c147b19eb31286d58",
+      "tracked_before": true
+    },
+    {
+      "old": "notebooks/Medical NLP Demo/01_medical_claims_NLP_sequence_demo.ipynb",
+      "new": "archive/notebooks/Medical NLP Demo/01_medical_claims_NLP_sequence_demo.ipynb",
+      "sha256_before": "d1559264bd3f855ed500d4f984f36b2b3b79dc4dd4221df48bfc75af65b806ef",
+      "tracked_before": true,
+      "git_blob_sha256": "d1559264bd3f855ed500d4f984f36b2b3b79dc4dd4221df48bfc75af65b806ef"
+    },
+    {
+      "old": "notebooks/Project Evidence/00_collect_missing_inputs.ipynb",
+      "new": "archive/notebooks/Project Evidence/00_collect_missing_inputs.ipynb",
+      "sha256_before": "d836859ed38fa1cab4d40082291077a65d354aaf455ed512dd3709cf7d72c79a",
+      "tracked_before": true,
+      "git_blob_sha256": "7c42aec65f7aa6d7fa7e5fc6bcdd36aec61daa0d83c2c955312f3b564dd2248d"
+    },
+    {
+      "old": "notebooks/Project Evidence/README.md",
+      "new": "archive/notebooks/Project Evidence/README.md",
+      "sha256_before": "7bb2cdb07a457b00cf29b18f781ec0d6374f071d26481365bf09029532d9bccd",
+      "tracked_before": true
+    },
+    {
+      "old": "notebooks/Temporal Feature Selection/01_tensor_initialization.ipynb",
+      "new": "archive/notebooks/Temporal Feature Selection/01_tensor_initialization.ipynb",
+      "sha256_before": "3d536d08ca43ac0a2c1041b18d10ba515d3340caff7c1ae716e664c03e88e84b",
+      "tracked_before": true,
+      "git_blob_sha256": "4505780d2375997074124ab579c415b82cad925c77b855d99d7b33ddef9f9439"
+    },
+    {
+      "old": "notebooks/Temporal Feature Selection/02_patient_level_split.ipynb",
+      "new": "archive/notebooks/Temporal Feature Selection/02_patient_level_split.ipynb",
+      "sha256_before": "382c994c843773f41a7055c6a5a0d46b5a26f2e1e7b35a9b9bebd5250302823c",
+      "tracked_before": true,
+      "git_blob_sha256": "99dc8290d24c0de6f308e1bdd5327451ac355a35041968ccc4d748c1c53351e4"
+    },
+    {
+      "old": "notebooks/Temporal Feature Selection/03_transformer_training.ipynb",
+      "new": "archive/notebooks/Temporal Feature Selection/03_transformer_training.ipynb",
+      "sha256_before": "dd9c4903c492abd86b9cb78a60561f3283c068d4d48471967ce5ccbfccb58d66",
+      "tracked_before": true,
+      "git_blob_sha256": "9f8c7a8f5fb3a71140c163019f74d671edc64c4584a835673a1b1889c09153ad"
+    },
+    {
+      "old": "notebooks/Temporal Feature Selection/04_transformer_evaluation.ipynb",
+      "new": "archive/notebooks/Temporal Feature Selection/04_transformer_evaluation.ipynb",
+      "sha256_before": "4151a7065146b1b1140e2fbf137e9aab3ae103bf25c8f71a36ff76198c7bce8a",
+      "tracked_before": true,
+      "git_blob_sha256": "8f764d128dcc00815a20657c96e529b6b59c0cd823a930357192f0323aab7cf2"
+    },
+    {
+      "old": "notebooks/Temporal Feature Selection/START_HERE.md",
+      "new": "archive/notebooks/Temporal Feature Selection/START_HERE.md",
+      "sha256_before": "f0e2b71fa1cdd636abed571f502f90e8bb4ab6563c12e382e95fdee33608a1a0",
+      "tracked_before": true
+    },
+    {
+      "old": "notebooks/Temporal Feature Selection/VALIDATION.md",
+      "new": "archive/notebooks/Temporal Feature Selection/VALIDATION.md",
+      "sha256_before": "945851af093ff4b3f24b052c9446e8678dc0d979eb22fa72e6b2a2f4f77f233a",
+      "tracked_before": true
+    },
+    {
+      "old": "notebooks/Transformer Encoder/01_patient_level_split.ipynb",
+      "new": "archive/notebooks/Transformer Encoder/01_patient_level_split.ipynb",
+      "sha256_before": "9df18ad26492162469642abaccf66cbb597384a3df9fa8f0aae2eed095d06141",
+      "tracked_before": true,
+      "git_blob_sha256": "b21e3b85ff27a9cec0ebf8afd9fe9aedb3c906a9abe832b3f478186396259358"
+    },
+    {
+      "old": "notebooks/Transformer Encoder/02_transformer_training.ipynb",
+      "new": "archive/notebooks/Transformer Encoder/02_transformer_training.ipynb",
+      "sha256_before": "f7758d216bc19cc932e8cd44e9a0920c7b3a50a946310b60f2302daaf2afbdf1",
+      "tracked_before": true,
+      "git_blob_sha256": "eb51fd13f99860a70e18497aacc56d2a9b2201fd68a5b520767b5b81d3c4eda2"
+    },
+    {
+      "old": "notebooks/Transformer Encoder/03_transformer_evaluation.ipynb",
+      "new": "archive/notebooks/Transformer Encoder/03_transformer_evaluation.ipynb",
+      "sha256_before": "f05fe3d11344e57c31574ae962bcf3ad08ab9bd7ad56035f2fbabad5d65b3529",
+      "tracked_before": true,
+      "git_blob_sha256": "c563fd4f5e96455fd8819636f757858ec9f11a96599c17d397a5d928c2406cbe"
+    },
+    {
+      "old": "notebooks/Transformer Encoder/03_transformer_training_DL_POC.ipynb",
+      "new": "archive/notebooks/Transformer Encoder/03_transformer_training_DL_POC.ipynb",
+      "sha256_before": "954b7366389b9bda7b5cc3991fb0179816a05b23bc7c03937da72bf67ce534f8",
+      "tracked_before": true,
+      "git_blob_sha256": "954b7366389b9bda7b5cc3991fb0179816a05b23bc7c03937da72bf67ce534f8"
+    },
+    {
+      "old": "notebooks/Transformer Encoder/04_transformer_evaluation_DL_POC.ipynb",
+      "new": "archive/notebooks/Transformer Encoder/04_transformer_evaluation_DL_POC.ipynb",
+      "sha256_before": "7e2493caa80c48f2ea66d4b1783f168df7636f7ca3d3a520d5adb1682b11c268",
+      "tracked_before": true,
+      "git_blob_sha256": "7e2493caa80c48f2ea66d4b1783f168df7636f7ca3d3a520d5adb1682b11c268"
+    },
+    {
+      "old": "notebooks/expanded cohort/01_tensor_initialization_AutoML.ipynb",
+      "new": "notebooks/established_experiments/01_tensor_initialization_AutoML.ipynb",
+      "sha256_before": "a888b54be6f87841440beb7fc2fd69f75779b0ae2854db5273a315caac58d407",
+      "tracked_before": true,
+      "git_blob_sha256": "a888b54be6f87841440beb7fc2fd69f75779b0ae2854db5273a315caac58d407"
+    },
+    {
+      "old": "notebooks/expanded cohort/02_patient_level_split_AutoML.ipynb",
+      "new": "notebooks/established_experiments/02_patient_level_split_AutoML.ipynb",
+      "sha256_before": "8cfc9de2f0a15bf03ca8871a9ddfc1dc7888c76346b91944373a7216c1415303",
+      "tracked_before": true,
+      "git_blob_sha256": "8cfc9de2f0a15bf03ca8871a9ddfc1dc7888c76346b91944373a7216c1415303"
+    },
+    {
+      "old": "notebooks/expanded cohort/03_transformer_training_AutoML.ipynb",
+      "new": "notebooks/established_experiments/03_transformer_training_AutoML.ipynb",
+      "sha256_before": "1b8d536e51c568defefdb280b08b4003a5059a182c92125de7a2f3678e774344",
+      "tracked_before": true,
+      "git_blob_sha256": "1b8d536e51c568defefdb280b08b4003a5059a182c92125de7a2f3678e774344"
+    },
+    {
+      "old": "notebooks/expanded cohort/04_transformer_evaluation_AutoML.ipynb",
+      "new": "notebooks/established_experiments/04_transformer_evaluation_AutoML.ipynb",
+      "sha256_before": "ebab517835256e911f391f202d5e167cc14486014b4e3f7e8dd0afda927055b7",
+      "tracked_before": true,
+      "git_blob_sha256": "ebab517835256e911f391f202d5e167cc14486014b4e3f7e8dd0afda927055b7"
+    },
+    {
+      "old": "notebooks/expanded cohort/05_model_comparison_AutoML.ipynb",
+      "new": "notebooks/established_experiments/05_model_comparison_AutoML.ipynb",
+      "sha256_before": "f929952ceee1fa78decb88a8c78363630b9d95fbb0370c453306b6eefc781189",
+      "tracked_before": true,
+      "git_blob_sha256": "f929952ceee1fa78decb88a8c78363630b9d95fbb0370c453306b6eefc781189"
+    },
+    {
+      "old": "notebooks/expanded cohort/06_time_aware_lightgbm_AutoML.ipynb",
+      "new": "notebooks/established_experiments/06_time_aware_lightgbm_AutoML.ipynb",
+      "sha256_before": "08945360344bd4c328a7993d6b02624187ad1440b9f7cd4e4f7298ea6b93b164",
+      "tracked_before": true,
+      "git_blob_sha256": "08945360344bd4c328a7993d6b02624187ad1440b9f7cd4e4f7298ea6b93b164"
+    },
+    {
+      "old": "notebooks/expanded cohort/07_cached_feature_comparison_AutoML.ipynb",
+      "new": "archive/notebooks/expanded cohort/07_cached_feature_comparison_AutoML.ipynb",
+      "sha256_before": "378a5bb1be4d7b406e506c1b7876a8ce2ff9cb2ce94ff725b6a694db00af769b",
+      "tracked_before": true,
+      "git_blob_sha256": "378a5bb1be4d7b406e506c1b7876a8ce2ff9cb2ce94ff725b6a694db00af769b"
+    },
+    {
+      "old": "notebooks/expanded cohort/08_experiment_tracker_AutoML.ipynb",
+      "new": "notebooks/utilities/02_experiment_tracker.ipynb",
+      "sha256_before": "c37beac67637129f802629abf1553559ebf573dbb5e3c7653fc88f7a98e42525",
+      "tracked_before": true,
+      "git_blob_sha256": "c37beac67637129f802629abf1553559ebf573dbb5e3c7653fc88f7a98e42525"
+    },
+    {
+      "old": "notebooks/expanded cohort/09_medbert_monthly_benchmark.ipynb",
+      "new": "archive/notebooks/expanded cohort/09_medbert_monthly_benchmark.ipynb",
+      "sha256_before": "b931bc1e7ed7e1c07e85733ce1de81436eb85f7cebb160adefb3307deec1297d",
+      "tracked_before": true,
+      "git_blob_sha256": "b931bc1e7ed7e1c07e85733ce1de81436eb85f7cebb160adefb3307deec1297d"
+    },
+    {
+      "old": "notebooks/expanded cohort/10_pretrained_biomedbert_tensor_transfer.ipynb",
+      "new": "archive/notebooks/expanded cohort/10_pretrained_biomedbert_tensor_transfer.ipynb",
+      "sha256_before": "8c96fc12df098ef2b63c8b25da6aaab4dad607e1e517d8609cd47794261e5a94",
+      "tracked_before": true,
+      "git_blob_sha256": "dd2cab95b736245d54cf389bfa10d878813ffe6f52fa7088385a612b4b3ddf4b"
+    },
+    {
+      "old": "notebooks/expanded cohort/11_challenger_evidence_and_input_audit.ipynb",
+      "new": "notebooks/final_challenger/01_input_audit.ipynb",
+      "sha256_before": "1382f87985b182807bc72e1f9922533005c2e3b5d8e8d6dce053dcae7ee33af7",
+      "tracked_before": true,
+      "git_blob_sha256": "4e84d8f86632a2213db6f34cc47e4fbdaa0bd6b1e1f2955385b2049af664ff92"
+    },
+    {
+      "old": "notebooks/expanded cohort/12_challenger_tuning_and_blend.ipynb",
+      "new": "notebooks/final_challenger/02_tuning_and_blend.ipynb",
+      "sha256_before": "e0dfb22f149455d2db2bc186022ff5a4d185c201d74032b80636bb23b00b6194",
+      "tracked_before": true,
+      "git_blob_sha256": "1bd1c0ee14969afc840f628e16a84c598332658c90fdada5f7a5d90a2e0851d2"
+    },
+    {
+      "old": "notebooks/expanded cohort/13_challenger_validation_report.ipynb",
+      "new": "notebooks/final_challenger/03_validation_report.ipynb",
+      "sha256_before": "ad1d02cf19d5583dc3132266408b79ac0d0fd6f341c115c0621da70fc6bc66db",
+      "tracked_before": true,
+      "git_blob_sha256": "d1120983511431833de37d45fcb7c7354a56c18d0e2adeb17ddc43c86b8b2e75"
+    },
+    {
+      "old": "notebooks/expanded cohort/TAK861_Progress_20261117.pptx",
+      "new": "archive/presentations/TAK861_Progress_20261117.pptx",
+      "sha256_before": "2ebb4d25bc92806d2336b6edb610d8e79436de86a05ad5b3d1cfdd84be9eb374",
+      "tracked_before": true,
+      "git_blob_sha256": "2ebb4d25bc92806d2336b6edb610d8e79436de86a05ad5b3d1cfdd84be9eb374"
+    },
+    {
+      "old": "notebooks/expanded cohort/TAK861_Progress_20261120.pptx",
+      "new": "archive/presentations/TAK861_Progress_20261120.pptx",
+      "sha256_before": "1e3c6ce19314a1e7d20300f57c6db8e8023fcfde958aefcdcd2b635b76e859b2",
+      "tracked_before": true,
+      "git_blob_sha256": "1e3c6ce19314a1e7d20300f57c6db8e8023fcfde958aefcdcd2b635b76e859b2"
+    },
+    {
+      "old": "notebooks/expanded cohort/TAK861_Progress_20261124.pptx",
+      "new": "reports/presentations/TAK861_Progress_20261124.pptx",
+      "sha256_before": "4edd5ff572d3b2696abdadee16daddb30a3f70fd352210c3a4213eab46bd4bae",
+      "tracked_before": true,
+      "git_blob_sha256": "4edd5ff572d3b2696abdadee16daddb30a3f70fd352210c3a4213eab46bd4bae"
+    },
+    {
+      "old": "notebooks/expanded cohort/TAK861_roadmap_11-30_Nov_2026.pptx",
+      "new": "archive/presentations/TAK861_roadmap_11-30_Nov_2026.pptx",
+      "sha256_before": "07973ca6ca4a544e97b2c8b0f87792378e7f9a147fa624b6219ee970499c8c50",
+      "tracked_before": true,
+      "git_blob_sha256": "07973ca6ca4a544e97b2c8b0f87792378e7f9a147fa624b6219ee970499c8c50"
+    },
+    {
+      "old": "notebooks/feature analysis/01_gather_and_select_features.ipynb",
+      "new": "notebooks/utilities/01_gather_and_select_features.ipynb",
+      "sha256_before": "12f7d6436b7eb4b1d153c9c6e8509b8e3f4fa4840604c87e17da2dede4c53f41",
+      "tracked_before": true,
+      "git_blob_sha256": "93de8903425517e0d00decff8c7f67bf42549a3e216e5cf741be085ecbcdd816"
+    },
+    {
+      "old": "notebooks/production challenger/06_time_aware_lightgbm_AutoML.ipynb",
+      "new": "archive/notebooks/production challenger/06_time_aware_lightgbm_AutoML.ipynb",
+      "sha256_before": "08945360344bd4c328a7993d6b02624187ad1440b9f7cd4e4f7298ea6b93b164",
+      "tracked_before": false,
+      "git_blob_sha256": "08945360344bd4c328a7993d6b02624187ad1440b9f7cd4e4f7298ea6b93b164"
+    },
+    {
+      "old": "README.md",
+      "new": "archive/ORIGINAL_README.md",
+      "sha256_before": "2f88a68bd627a348d69bd9690b60da06f7c4f0e072640b2e7291dabd83d534d5",
+      "tracked_before": true
+    }
+  ]
+}

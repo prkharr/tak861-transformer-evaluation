@@ -6,13 +6,13 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-DEST = ROOT / 'notebooks/expanded cohort/10_pretrained_biomedbert_tensor_transfer.ipynb'
+DEST = ROOT / 'archive/notebooks/expanded cohort/10_pretrained_biomedbert_tensor_transfer.ipynb'
 
 def cell(source):
     return dict(cell_type='code', metadata={}, execution_count=None, outputs=[], source=source.splitlines(True))
 
 def build():
-    book = json.loads((ROOT / 'notebooks/expanded cohort/09_medbert_monthly_benchmark.ipynb').read_text())
+    book = json.loads((ROOT / 'archive/notebooks/expanded cohort/09_medbert_monthly_benchmark.ipynb').read_text())
     cells = copy.deepcopy(book['cells'][:3])
     setup = ''.join(cells[0]['source'])
     setup = setup[setup.index('import os, tempfile'):]

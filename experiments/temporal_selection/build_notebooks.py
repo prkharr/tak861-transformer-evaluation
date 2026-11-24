@@ -11,7 +11,7 @@ from early_stages import EARLY_HELPERS_SOURCE, early_notebook_cells
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 OUT = REPO.parent / "outputs" / "Temporal_Feature_Selection"
-MIRROR = REPO / "notebooks" / "Temporal Feature Selection"
+MIRROR = REPO / 'archive' / 'notebooks' / 'Temporal Feature Selection'
 
 
 def read(path):

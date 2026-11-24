@@ -6,7 +6,8 @@ import json
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[2]
-DEST=ROOT/'notebooks/expanded cohort'
+DEST=ROOT/'notebooks/final_challenger'
+PARENT=ROOT/'notebooks/established_experiments/02_patient_level_split_AutoML.ipynb'
 
 def code(s):
     ast.parse(s)
@@ -16,7 +17,8 @@ def md(s):
     return dict(cell_type='markdown',metadata={},source=s.splitlines(True))
 
 def build():
-    parent=json.loads((DEST/'02_patient_level_split_AutoML.ipynb').read_text(encoding='utf-8-sig'))
+    DEST.mkdir(parents=True, exist_ok=True)
+    parent=json.loads(PARENT.read_text(encoding='utf-8-sig'))
     source=(Path(__file__).with_name('pipeline.py')).read_text()
     timing=(ROOT/'experiments/challenger/time_lgbm.py').read_text()
     pilot=(ROOT/'experiments/medbert/benchmark.py').read_text()
@@ -123,7 +125,7 @@ else: wh.save_artifacts(report_table,{'report.json':payload})
 print('Saved report with intervals:',report_table)
 ''')]
     outputs=[]
-    for name,cells in [('11_challenger_evidence_and_input_audit',nb11),('12_challenger_tuning_and_blend',nb12),('13_challenger_validation_report',nb13)]:
+    for name,cells in [('01_input_audit',nb11),('02_tuning_and_blend',nb12),('03_validation_report',nb13)]:
         for i,c in enumerate(cells):
             c['id']=name[:2]+'-'+str(i)
             if c['cell_type']=='code': ast.parse(''.join(c['source']))

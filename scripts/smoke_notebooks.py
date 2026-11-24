@@ -60,7 +60,7 @@ def main() -> None:
         "env": {"TAK861_CONFIG": config_path.as_posix()},
     }), encoding="utf-8")
 
-    paths = sorted((root / "notebooks" / "Transformer Encoder").glob("0[123]*.ipynb"))
+    paths = sorted((root / 'archive' / 'notebooks' / 'Transformer Encoder').glob("0[123]*.ipynb"))
     if len(paths) != 3:
         raise RuntimeError("Expected exactly notebooks 01, 02 and 03.")
     # Rerun 01 once to exercise frozen bundle/manifest/audit reuse before training.

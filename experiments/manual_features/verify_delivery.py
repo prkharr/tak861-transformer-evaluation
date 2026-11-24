@@ -22,7 +22,7 @@ for path in notebooks:
         compile(cell.source, str(path), "exec")
         assert not any(s in cell.source for s in ("sfPassword", "sfToken", "BEGIN PRIVATE KEY", "password ="))
     total += len(notebook.cells)
-    mirror = repo / "notebooks" / "Manual Features" / path.name
+    mirror = repo / 'archive' / 'notebooks' / 'Manual Features' / path.name
     assert path.read_bytes() == mirror.read_bytes()
     print(path.name, path.stat().st_size, "bytes")
 archive = folder.parent / "Manual_Features_4_Notebooks.zip"

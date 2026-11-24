@@ -5,8 +5,8 @@ from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[2]
 results=[]
-for number in (11,12,13):
-    path=next((ROOT/'notebooks/expanded cohort').glob(str(number)+'_*.ipynb'))
+for number in (1,2,3):
+    path=next((ROOT/'notebooks/final_challenger').glob(f'{number:02d}_*.ipynb'))
     book=json.loads(path.read_text(encoding='utf8'))
     codes=[''.join(c['source']) for c in book['cells'] if c['cell_type']=='code']
     for source in codes: ast.parse(source)
@@ -22,7 +22,7 @@ for number in (11,12,13):
     assert all(not c.get('outputs') and c.get('execution_count') is None for c in book['cells'])
     results.append(dict(notebook=path.name,code_cells=len(codes),sf_values_blank=True,
                         syntax='pass',embedded_hash='pass',sha256=hashlib.sha256(path.read_bytes()).hexdigest()))
-receipt=dict(notebooks=results,local_tests='3 tests passed; real synthetic LightGBM/PyTorch end-to-end run and resume',
+receipt=dict(notebooks=results,local_tests='not run by this structural validator; see separate test receipt',
              private_databricks_run='not executed',clinical_uplift='not established')
 Path(__file__).with_name('validation.json').write_text(json.dumps(receipt,indent=2)+'\n')
 print(json.dumps(receipt,indent=2))

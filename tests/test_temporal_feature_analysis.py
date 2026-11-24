@@ -13,7 +13,7 @@ import torch
 from sklearn.metrics import average_precision_score
 
 
-BOOK = Path(__file__).resolve().parents[1] / 'notebooks/Temporal Feature Selection/04_transformer_evaluation.ipynb'
+BOOK = Path(__file__).resolve().parents[1] / 'archive/notebooks/Temporal Feature Selection/04_transformer_evaluation.ipynb'
 
 
 def source():

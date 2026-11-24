@@ -6,7 +6,7 @@ from textwrap import dedent
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
-DESTINATION = REPO / 'notebooks' / 'feature analysis' / '01_gather_and_select_features.ipynb'
+DESTINATION = REPO / 'notebooks' / 'utilities' / '01_gather_and_select_features.ipynb'
 
 
 def build():

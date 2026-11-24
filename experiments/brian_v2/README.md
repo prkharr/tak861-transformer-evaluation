@@ -1,6 +1,6 @@
 # Controlled feature and regularization experiments
 
-The four generated notebooks are in `notebooks/Brian Experiments`. Start with that folder's `START_HERE.md`.
+The four generated notebooks are in `archive/notebooks/Brian Experiments`. Start with that folder's `START_HERE.md`.
 
 This version preserves the completed V63 input tables and patient split. It tests a TRAIN-selected claims subset, separate dropout/weight-decay changes, a smaller Transformer, and regularized logistic regression. The true client engineered-feature comparison remains pending exact definitions; the slide's 150 custom features are not equivalent to the `reduced150` claims subset. The stated 90-day business target is recorded without claiming independent verification of existing labels.
 
