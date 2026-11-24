@@ -1,0 +1,13 @@
+{
+  "prior_evidence": "../progress_20261120/evidence.json",
+  "new_sources": [
+    "experiments/fresh_cohort/nlp_features.py",
+    "experiments/challenger/time_lgbm.py",
+    "experiments/automl_sequence/fresh_lgbm.py",
+    "experiments/automl_sequence/modeling.py",
+    "experiments/evidence_challenger/README.md"
+  ],
+  "scope": "Presentation update; no new private-data benchmark or production verification executed",
+  "examples": "Synthetic, complete-history inputs; timing numbers computed using the implemented formulas",
+  "implementation_paths": "Proposals, not shipped AutoML capabilities"
+}

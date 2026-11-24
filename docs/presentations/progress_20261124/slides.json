@@ -1,0 +1,697 @@
+[
+  {
+    "title": "Deep learning proof of concept",
+    "sub": "TAK861 | Stakeholder update | 24 November 2026",
+    "kind": "cover"
+  },
+  {
+    "title": "The PoC has advanced across three workstreams",
+    "sub": "Progress includes stronger inputs and evaluation discipline as well as model development.",
+    "kind": "table",
+    "rows": [
+      [
+        "Workstream",
+        "What changed",
+        "What we learned"
+      ],
+      [
+        "Historical representation",
+        "Counts, selected features and monthly / quarterly models",
+        "Use real monthly history; repeated static snapshots are not history."
+      ],
+      [
+        "Data and evaluation",
+        "Expanded cohort and patient-separated splits",
+        "Compare models on the same rows and keep learned selection within TRAIN."
+      ],
+      [
+        "Model development",
+        "Static, NLP and timing augmentation",
+        "NLP leads at 10%; timing helped a fixed-budget matched control."
+      ]
+    ],
+    "widths": [
+      240,
+      440,
+      485
+    ]
+  },
+  {
+    "title": "A common data foundation supports fair comparisons",
+    "sub": "The expanded cohort contains 449,199 snapshots from 25,925 patients.",
+    "kind": "table",
+    "rows": [
+      [
+        "Population",
+        "Snapshots",
+        "Patients",
+        "Positive snapshots"
+      ],
+      [
+        "Training",
+        "315,343",
+        "18,193",
+        "5,166"
+      ],
+      [
+        "Validation",
+        "67,969",
+        "3,919",
+        "1,141"
+      ],
+      [
+        "Reserved test partition",
+        "65,887",
+        "3,813",
+        "1,179"
+      ]
+    ],
+    "widths": [
+      350,
+      270,
+      230,
+      315
+    ],
+    "takeaway": "All current model comparisons use the same validation rows. A snapshot is one patient at one date.",
+    "note": "Patient-separated splits. Current development does not score TEST. Snapshot window: February 2022 to January 2026."
+  },
+  {
+    "title": "Medical histories enrich the original tabular approach",
+    "sub": "The current phase combines twelve monthly history windows with one AutoML summary anchor.",
+    "kind": "columns",
+    "items": [
+      [
+        "Structured counts",
+        "Diagnosis, procedure and prescription activity describe what happened and how frequently."
+      ],
+      [
+        "Medical-code text",
+        "Monthly text representations of medical codes add information about the types of recorded activity. These are not clinical notes."
+      ],
+      [
+        "Timing and context",
+        "Static AutoML features provide context. Sleep-study and sleep-wake timing features test whether recency adds predictive value."
+      ]
+    ],
+    "note": "A full twelve-anchor historical AutoML panel remains a separate experiment."
+  },
+  {
+    "title": "One fictional history makes the inputs concrete",
+    "sub": "Illustrative patient A, cutoff 31 October: all twelve history months are observed.",
+    "kind": "table",
+    "rows": [
+      [
+        "Month",
+        "Recorded activity",
+        "Generated inputs"
+      ],
+      [
+        "October (month 0)",
+        "Two distinct sleep-study events",
+        "Study count = 2; text includes repeated \"sleep study\" terms."
+      ],
+      [
+        "September (month 1)",
+        "One study; one sleep-wake-disorder event",
+        "Study count = 1; text includes \"sleep study\" and \"sleep wake disorders\"."
+      ],
+      [
+        "August to prior November",
+        "No events in these two categories",
+        "Study counts = 0 in the remaining ten monthly positions."
+      ],
+      [
+        "One snapshot row",
+        "Study counts, newest first: [2, 1, 0, ... , 0]",
+        "Recency = 0; active months = 2; recent-minus-prior monthly mean = 1."
+      ]
+    ],
+    "widths": [
+      340,
+      410,
+      415
+    ],
+    "note": "Synthetic illustration, not an actual patient or a prediction. Event counts follow the category aggregation; zero assumes observed history, not missing data."
+  },
+  {
+    "title": "How repeated medical-code text reaches NLP fusion",
+    "sub": "The current method turns medical-code descriptions into numbers; it does not read clinical notes.",
+    "kind": "table",
+    "rows": [
+      [
+        "Stage",
+        "Concrete example",
+        "What the model receives"
+      ],
+      [
+        "Monthly text",
+        "\"sleep study\" occurs twice in October and once in September.",
+        "Word and two-word phrase counts, weighted by event counts."
+      ],
+      [
+        "Reduce repetition dominance",
+        "For a term count of 2, sublinear TF = 1 + ln(2), approximately 1.69; count 1 becomes 1.",
+        "TRAIN-fitted IDF weights, then each monthly text vector is normalised."
+      ],
+      [
+        "Combine with counts",
+        "Count channel still records 2 studies versus 1 study.",
+        "Counts and text features are concatenated for each month."
+      ],
+      [
+        "Learn across months",
+        "The sequence model sees the twelve monthly vectors and their positions.",
+        "A learned score; repeat codes alone do not prove disease severity or treatment need."
+      ]
+    ],
+    "widths": [
+      340,
+      410,
+      415
+    ],
+    "note": "Exact final text weights depend on the frozen TRAIN vocabulary and IDF. If a document repeats only the same phrase, normalisation can remove the overall repetition scale; counts retain frequency."
+  },
+  {
+    "title": "Time-aware features make recent activity explicit",
+    "sub": "Same three studies, different timing: the raw totals alone cannot distinguish these histories.",
+    "kind": "table",
+    "rows": [
+      [
+        "Feature",
+        "Patient A: studies in months 0 and 1",
+        "Patient B: studies in months 8 and 9"
+      ],
+      [
+        "Monthly study counts",
+        "[2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]",
+        "[0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0]"
+      ],
+      [
+        "Months since last / active months",
+        "0 / 2",
+        "8 / 2"
+      ],
+      [
+        "Recent 3-month mean minus prior 9-month mean",
+        "1 - 0 = +1.00",
+        "0 - 3/9 = -0.33"
+      ],
+      [
+        "Recent-study + recent sleep-wake flag",
+        "1, if sleep-wake activity is in month 1",
+        "0, because no study is in months 0 to 5"
+      ]
+    ],
+    "widths": [
+      370,
+      395,
+      400
+    ],
+    "note": "Synthetic complete-history examples. The interaction requires a study in months 0-5 and sleep-wake activity in months 0-2. Missing history produces missing timing values, not zero."
+  },
+  {
+    "title": "NLP fusion leads the current top-10% ranking",
+    "sub": "2.954 versus 2.533: +16.6%, or 48 additional positive snapshots at the same 10% capacity.",
+    "kind": "chart",
+    "categories": [
+      "Static LightGBM",
+      "Count Transformer",
+      "Static fusion",
+      "NLP fusion"
+    ],
+    "values": [
+      2.532829,
+      2.734403,
+      2.786988,
+      2.953506
+    ],
+    "max": 3.4,
+    "metric": "Validation Lift@10%",
+    "takeaway": "Paired lift interval: +0.009 to +0.802. NLP leads at 10%; static fusion leads slightly at 20% and 30%.",
+    "note": "Development validation. Added information differs across models. Lift is selected positive rate divided by overall positive rate."
+  },
+  {
+    "title": "What does this mean for our teams?",
+    "sub": "A better shortlist could make the same review effort more productive.",
+    "kind": "columns",
+    "items": [
+      [
+        "Measured improvement",
+        "Among 6,797 selected patient-date records, NLP fusion captured 337 positive records versus 289 for the static development control."
+      ],
+      [
+        "Proposed process benefit",
+        "Refresh the priority list with monthly histories, then apply agreed patient deduplication and HCP mapping before routing it for review."
+      ],
+      [
+        "What success must prove",
+        "More unique relevant patients at the same capacity, acceptable run cost and reliable delivery. Outreach response and treatment benefit are not yet measured."
+      ]
+    ],
+    "note": "48 additional positive snapshots are not 48 additional people. Positive means the recorded target event occurred in the outcome window."
+  },
+  {
+    "title": "Timing features improved their matched control",
+    "sub": "Both arms use 1,000 trees without early stopping. Timing added 44 positive snapshots: 235 to 279.",
+    "kind": "chart",
+    "categories": [
+      "Fixed-budget static",
+      "Fixed-budget static + timing"
+    ],
+    "values": [
+      2.059567,
+      2.445188
+    ],
+    "max": 3.0,
+    "metric": "Validation Lift@10%",
+    "takeaway": "The timing arm still trails the earlier early-stopped static control: 279 versus 289 captures. Tune them under one protocol next.",
+    "note": "Paired lift difference +0.386; 95% interval [+0.098, +0.689]. Gain versus the stronger early-stopped baseline is untested."
+  },
+  {
+    "title": "Repeated runs show a consistent lead for NLP fusion",
+    "sub": "Each model was trained three times with different random starting points.",
+    "kind": "table",
+    "rows": [
+      [
+        "Model",
+        "Run 1 (seed 42)",
+        "Run 2 (seed 142)",
+        "Run 3 (seed 242)"
+      ],
+      [
+        "Count Transformer",
+        "2.831",
+        "2.664",
+        "2.682"
+      ],
+      [
+        "Static fusion",
+        "2.787",
+        "2.840",
+        "2.743"
+      ],
+      [
+        "NLP fusion",
+        "2.918",
+        "2.945",
+        "3.050"
+      ]
+    ],
+    "widths": [
+      440,
+      240,
+      240,
+      245
+    ],
+    "takeaway": "Selected-model lift drops by 7 to 11% from training to validation. Repeated-run consistency does not prove performance on new populations.",
+    "note": "Values are validation Lift@10%. Gaps use training lift as the denominator. Validation was used to select checkpoints."
+  },
+  {
+    "title": "Two implementation paths for AutoML",
+    "sub": "Proposal: compare both paths before choosing how to operationalise the improvement.",
+    "kind": "table",
+    "rows": [
+      [
+        "Decision",
+        "Option 1: AutoML version of deep learning",
+        "Option 2: Augmented current AutoML"
+      ],
+      [
+        "What changes",
+        "Automate training and tuning of the full count-sequence + NLP fusion model.",
+        "Add timing and text-derived columns to the existing tabular workflow."
+      ],
+      [
+        "What it requires",
+        "Custom model candidate, sequence inputs, compute and model-serving support.",
+        "A versioned feature pipeline; refit and validate the current AutoML model."
+      ],
+      [
+        "Main trade-off",
+        "Keeps sequence modelling; more integration and monitoring work.",
+        "Smaller workflow change; may lose useful sequence patterns."
+      ],
+      [
+        "Acceptance gate",
+        "Demonstrate incremental captures, stable runs and acceptable operating cost.",
+        "Demonstrate incremental captures against the same static control."
+      ]
+    ],
+    "widths": [
+      245,
+      460,
+      460
+    ],
+    "note": "Both paths are proposals. Native support in the current AutoML platform has not been established. A trained fusion model is not itself a raw feature."
+  },
+  {
+    "title": "Start with a controlled pilot, then choose the path",
+    "sub": "Suggested sequence: augment the current workflow first; assess the full neural model in parallel.",
+    "kind": "table",
+    "rows": [
+      [
+        "Step",
+        "Deliverable",
+        "Decision enabled"
+      ],
+      [
+        "Build shared inputs",
+        "Monthly text and timing features, with identical cutoff rules.",
+        "Can both paths use the same reliable information?"
+      ],
+      [
+        "Train without answer leakage",
+        "Fit within TRAIN; if using fusion scores as a column, generate TRAIN scores out of fold.",
+        "Does added information help beyond the static control?"
+      ],
+      [
+        "Run alongside current scoring",
+        "Keep production decisions unchanged; compare lists across months and key groups.",
+        "Are unique-patient captures, stability, cost and refresh time acceptable?"
+      ],
+      [
+        "Agree release criteria",
+        "Set minimum improvement, uncertainty, quality and runtime thresholds before evaluation.",
+        "Promote only after an agreed independent comparison."
+      ]
+    ],
+    "widths": [
+      340,
+      410,
+      415
+    ],
+    "note": "An out-of-fold score is produced by a model that did not train on that patient. Fusion-score stacking and either production route remain unverified."
+  },
+  {
+    "title": "The next challenger builds on demonstrated signals",
+    "sub": "Keep business rules fixed and prioritise improvements with a clear experimental rationale.",
+    "kind": "table",
+    "rows": [
+      [
+        "Priority",
+        "Next action",
+        "Reason"
+      ],
+      [
+        "1",
+        "Tune static and time-aware LightGBM with TRAIN-only early stopping",
+        "Timing already improved a matched control."
+      ],
+      [
+        "2",
+        "Tune NLP fusion with training-only selection",
+        "It is the strongest current top-10% development model."
+      ],
+      [
+        "3",
+        "Learn a blend from out-of-fold TRAIN predictions",
+        "Test complementary captures without fitting weights on validation."
+      ],
+      [
+        "4",
+        "Report patient captures, uncertainty and runtime",
+        "Translate model ranking into targeting value."
+      ]
+    ],
+    "widths": [
+      135,
+      550,
+      480
+    ],
+    "takeaway": "Deliverable: a reproducible development challenger. Production verification is deferred for stakeholder alignment.",
+    "note": "Overnight, resumable execution. No model improvement is guaranteed and production remains unchanged."
+  },
+  {
+    "title": "Experiment record: what was actually compared",
+    "sub": "Completed SUMMARY development runs; all four main models score the same validation rows.",
+    "kind": "table",
+    "rows": [
+      [
+        "Notebook / experiment",
+        "Inputs and fitting setup",
+        "Validation Lift@10% / conclusion"
+      ],
+      [
+        "03-04: COUNT",
+        "Selected monthly count channels; one-layer Transformer.",
+        "2.734: history-only reference."
+      ],
+      [
+        "03-04: STATIC_FUSION",
+        "Count sequence plus selected current AutoML features.",
+        "2.787: small gain over COUNT."
+      ],
+      [
+        "03-04: NLP_FUSION",
+        "Count sequence plus monthly description TF-IDF.",
+        "2.954: strongest top-10% development result."
+      ],
+      [
+        "05: static LightGBM",
+        "Selected AutoML summary + availability; validation early stopping.",
+        "2.533: matched-population tabular control."
+      ]
+    ],
+    "widths": [
+      340,
+      410,
+      415
+    ],
+    "note": "Three seeds: 42, 142, 242; final comparisons average seed predictions. Validation checkpoint selection means these are development results, not untouched-test estimates."
+  },
+  {
+    "title": "Experiment record: platforms and model settings",
+    "sub": "Execution: Databricks Python/Spark notebooks; private Snowflake input and artifact tables.",
+    "kind": "table",
+    "rows": [
+      [
+        "Component",
+        "Recorded settings",
+        "Interpretation"
+      ],
+      [
+        "Transformer runs",
+        "PyTorch; width 64, 4 heads, 1 layer, feed-forward 128; dropout 0.2.",
+        "AdamW: learning rate 0.0003, weight decay 0.001; batch 256."
+      ],
+      [
+        "Training controls",
+        "Max 30 epochs; patience 5; plateau schedule; patient weights; square-root class balance.",
+        "Validation Lift@10% selects checkpoints; fusion best epochs: 2 to 4."
+      ],
+      [
+        "Monthly NLP",
+        "scikit-learn; at most 256 TRAIN-fitted terms; unigrams/bigrams, sublinear TF, smoothed IDF, L2 normalisation.",
+        "Twelve monthly windows; code descriptions, not clinical notes."
+      ],
+      [
+        "Static LightGBM",
+        "Max 1,000 trees; 31 leaves; learning rate 0.05; min child 20; lambda 1; row/column sampling 0.8.",
+        "8 threads; validation stopping patience 100; three seeds."
+      ]
+    ],
+    "widths": [
+      245,
+      460,
+      460
+    ],
+    "note": "Recorded notebook settings, not a newly executed benchmark. Exact historical cluster SKU and library versions must be recovered from run receipts; they are not inferred here."
+  },
+  {
+    "title": "Experiment record: timing, earlier work and next run",
+    "sub": "Keep historical findings separate from results on the expanded population.",
+    "kind": "table",
+    "rows": [
+      [
+        "Experiment",
+        "Setup",
+        "Result and conclusion"
+      ],
+      [
+        "06: timing augmentation",
+        "Same static inputs plus 9 timing/interaction features; fixed 1,000 trees; three seeds.",
+        "2.060 to 2.445; +44 captures. Stronger early-stopped control remains 2.533."
+      ],
+      [
+        "Earlier feature selection",
+        "Original cohort; latest TRAIN snapshot per patient; grouped logistic evaluation.",
+        "AP about 0.156 to 0.19. Useful for selection, not a promised Transformer gain."
+      ],
+      [
+        "Earlier 49-feature refit",
+        "Original 49-feature LightGBM refitted on TRAIN; original validation population.",
+        "Approximately 2.52; not a fresh verification of the historical 4.59 score."
+      ],
+      [
+        "11-13: challenger workflow",
+        "Nested patient folds, tree/neural tuning and TRAIN out-of-fold blending; synthetic tests passed.",
+        "Implementation available. No new private-data performance result is documented here."
+      ]
+    ],
+    "widths": [
+      340,
+      410,
+      415
+    ],
+    "note": "Timing uses the same LightGBM base settings without early stopping. A separate historical model comparison does not isolate the effect of architecture or data changes."
+  },
+  {
+    "title": "Appendix: capacity changes the preferred model",
+    "sub": "The top-10% result should not be generalized to every targeting capacity.",
+    "kind": "table",
+    "rows": [
+      [
+        "Model",
+        "Lift@10%",
+        "Lift@20%",
+        "Lift@30%"
+      ],
+      [
+        "Static LightGBM",
+        "2.533",
+        "2.130",
+        "1.899"
+      ],
+      [
+        "Count Transformer",
+        "2.734",
+        "2.095",
+        "1.826"
+      ],
+      [
+        "Static fusion",
+        "2.787",
+        "2.244",
+        "1.913"
+      ],
+      [
+        "NLP fusion",
+        "2.954",
+        "2.230",
+        "1.899"
+      ]
+    ],
+    "widths": [
+      440,
+      240,
+      240,
+      245
+    ],
+    "takeaway": "NLP fusion leads at 10%; static fusion leads slightly at 20% and 30%.",
+    "note": "All model-minus-LightGBM intervals at 20% and 30% include zero. Unique positive patients need separate counting."
+  },
+  {
+    "title": "Why 4.59 and 2.95 cannot yet be compared fairly",
+    "sub": "The difference is observed; its causes have not been established.",
+    "kind": "table",
+    "rows": [
+      [
+        "Evidence",
+        "What we know",
+        "What it does not prove"
+      ],
+      [
+        "Historical production: about 4.59",
+        "A prior reported number exists; the model and evaluation provenance need confirmation.",
+        "That it generalises to the current population."
+      ],
+      [
+        "Original TRAIN-only refit: about 2.52",
+        "Changing the fit/evaluation protocol changes the reported result.",
+        "That training overlap caused the entire difference."
+      ],
+      [
+        "Current NLP fusion: 2.954",
+        "Measured on 67,969 development validation snapshots.",
+        "A production uplift or an independent final-test result."
+      ],
+      [
+        "Current production-score join",
+        "The earlier exact-key check found no production score for any of these 67,969 snapshots.",
+        "A valid same-row comparison; nearest-date substitution would change the task."
+      ]
+    ],
+    "widths": [
+      340,
+      410,
+      415
+    ],
+    "note": "Potential contributors to investigate: patient overlap, population/date differences, feature vintage, target/follow-up rules and selection history. None is established as the sole explanation."
+  },
+  {
+    "title": "Separate learning, model selection and final testing",
+    "sub": "\"TRAIN-only\" describes fitting scope, not automatically an unbiased evaluation.",
+    "kind": "table",
+    "rows": [
+      [
+        "Scenario",
+        "What happened",
+        "How to interpret the result"
+      ],
+      [
+        "Fit TRAIN; score TRAIN",
+        "The same records teach and test the model.",
+        "Training performance; can be optimistic."
+      ],
+      [
+        "Fit TRAIN; validation selects stopping",
+        "Validation labels choose the best checkpoint or settings.",
+        "Development validation; no gradients on validation, but selection still uses it."
+      ],
+      [
+        "Fit TRAIN + validation",
+        "Former validation records also teach the final model.",
+        "Scoring those records is not a holdout test; use fresh patients or a later period."
+      ],
+      [
+        "Freeze model; score independent data",
+        "No evaluation labels used in fitting, tuning or selecting features.",
+        "The appropriate basis for a generalisation claim, subject to data-quality checks."
+      ]
+    ],
+    "widths": [
+      340,
+      410,
+      415
+    ],
+    "note": "Also distinguish scoring a combined TRAIN+validation pool from fitting on it. Report each partition separately; a mixed score hides the difference."
+  },
+  {
+    "title": "A fair production comparison needs one agreed test",
+    "sub": "Verification proposal: obtain provenance and score coverage before running or claiming a result.",
+    "kind": "table",
+    "rows": [
+      [
+        "Check",
+        "Required evidence",
+        "Output"
+      ],
+      [
+        "Define the same task",
+        "Same target window, eligibility, snapshot cutoff, ranking unit and capacity.",
+        "Written comparison specification and locked evaluation keys."
+      ],
+      [
+        "Verify model provenance",
+        "Frozen model version, training dates/patients, feature vintage and tuning history.",
+        "Evidence that the evaluation is independent, or an explicit limitation."
+      ],
+      [
+        "Score identical records",
+        "Exact patient-date scores from both models; complete outcome follow-up.",
+        "Coverage report; no nearest-date or selective-overlap substitution."
+      ],
+      [
+        "Measure operational value",
+        "Lift and captures at 10/20/30%; paired patient intervals; unique patients and runtime.",
+        "A release decision using thresholds agreed before seeing results."
+      ]
+    ],
+    "widths": [
+      340,
+      410,
+      415
+    ],
+    "note": "Production remains unchanged. Access to frozen scores and training provenance, and agreement on a fresh evaluation population, are prerequisites."
+  }
+]
